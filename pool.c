@@ -4,6 +4,18 @@ int main() {
     checkInput();
     printf("Just checking \n");
 
+    int shmid = createSharedMemory();
+    if (shmid == -1) {
+        fprintf(stderr, "Pool: Probelm with getting shmem.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    SharedMemory* shdata = attachSharedMemory(shmid);
+    if (shdata == (void*)-1) {
+        fprintf(stderr, "Pool: problem with attach shmem.\n");
+        exit(EXIT_FAILURE);
+    }
+
     pid_t cashierPid = fork();
     if (cashierPid == 0) {
         execl("./cashier", "./cashier", NULL);
@@ -16,7 +28,7 @@ int main() {
     // for testing purposes 1 lifeguard
     pid_t lifeguardPid = fork();
     if (lifeguardPid == 0) {
-        execl("./lifeguard", "./lifeguard", "1", NULL);  // "1" = olimpic
+        execl("./lifeguard", "./lifeguard", "1", NULL);
         perror("Error with execl a lifeguard");
         exit(EXIT_FAILURE);
     } else if (lifeguardPid < 0) {
@@ -40,6 +52,12 @@ int main() {
     }
 
     wait(NULL);
+    if (detachSharedMemory(shdata) == -1) {
+        fprintf(stderr, "Pool: problem with detach shmem.\n");
+    }
+    if (destroySharedMemory(shmid) == -1) {
+        fprintf(stderr, "Pool: problem with deleting shmem.\n");
+    }
 
     return 0;
 }

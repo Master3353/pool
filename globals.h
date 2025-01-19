@@ -18,11 +18,17 @@
 #include <time.h>
 #include <unistd.h>
 
+#define SHM_KEY 0x1234
+
+#define OLIMPIC 1
+#define RECRE 2
+#define CHILD 3
 #define TIME_OPEN  // not sure yet how to implement this
 #define TIME_CLOSED
 #define MAX_CAPACITY_OLIMPIC 30
 #define MAX_CAPACITY_RECRE 60
 #define MAX_CAPACITY_CHILD 40
+// 1 - olimpic, 2 - recre, 3 - child
 
 typedef struct {
     // current population in different pools
@@ -38,6 +44,13 @@ typedef struct {
     // tracking if building is open
     int isFacilityClosed;  // 0 - open, 1 - closed
 } SharedMemory;
+
+int createSharedMemory();
+int getSharedMemory();
+SharedMemory* attachSharedMemory(int shmid);
+int detachSharedMemory(SharedMemory* shdata);
+int destroySharedMemory(int shmid);
+void initializeSharedData(SharedMemory* shdata);
 
 void checkInput();
 
