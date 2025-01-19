@@ -39,11 +39,7 @@ int main() {
     for (int i = 0; i < 5; i++) {
         pid_t clientPid = fork();
         if (clientPid == 0) {
-            char ageStr[10];
-            char poolStr[10];
-            sprintf(ageStr, "%d", 20 + i * 2);  // increasing age
-            sprintf(poolStr, "%d", 2);          // 2 = recre pool
-            execl("./client", "./client", ageStr, poolStr, NULL);
+            execl("./client", "./client", NULL);
             perror("Error with execl client");
             exit(EXIT_FAILURE);
         } else if (clientPid < 0) {
