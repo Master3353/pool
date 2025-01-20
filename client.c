@@ -7,7 +7,6 @@ typedef struct {
 } Child;
 // random age generator
 int randRange(int min, int max) { return min + rand() % (max - min + 1); }
-// Funkcja wątku dla dziecka
 void* childThread(void* arg) {
     Child* child = (Child*)arg;
 
@@ -60,12 +59,13 @@ int main(int argc, char* argv[]) {
         printf("Client without Child.\n");
     }
 
-    int age = randRange(18, 70);
     int poolId;
-
+    int age;
     if (hasChild && child.childAge <= 3) {
+        age = randRange(18, 70);
         poolId = 3;  // need to be with child when is young
     } else {
+        age = randRange(10, 70);
         poolId = randRange(1, 2);
     }
 
