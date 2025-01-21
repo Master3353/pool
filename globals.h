@@ -19,6 +19,8 @@
 #include <unistd.h>
 
 #define SHM_KEY 0x1234
+#define SEM_KEY 0x5678
+#define SEM_COUNT 1
 
 #define OLIMPIC 1
 #define RECRE 2
@@ -41,9 +43,20 @@ typedef struct {
     int isOlimpicOpen;
     int isRecreOpen;
     int isChildOpen;
+    int recrePeopleCount;
     // tracking if building is open
     int isFacilityClosed;  // 0 - open, 1 - closed
 } SharedMemory;
+
+typedef struct {
+    long mtype;
+    int clientPid;
+    int age;
+    int isVip;
+    int targetPool;
+    int status;
+    char text[128];
+} Msg;
 
 int createSharedMemory();
 int getSharedMemory();

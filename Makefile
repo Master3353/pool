@@ -13,4 +13,3 @@ client: client.c globals.c
 			
 clean:
 	rm -f pool  cashier lifeguard client
-	ipcrm -M 0x1234

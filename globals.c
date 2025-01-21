@@ -22,7 +22,8 @@ int createSharedMemory() {
         }
         initializeSharedData(shdata);
         if (detachSharedMemory(shdata) == -1) {
-            perror("detachSharedMemory po inicjalizacji (createSharedMemory)");
+            perror(
+                "detachSharedMemory after initialize (initializeSharedData)");
             // countinue besides problem with detach
         }
     }
