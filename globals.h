@@ -43,20 +43,9 @@ typedef struct {
     int isOlimpicOpen;
     int isRecreOpen;
     int isChildOpen;
-    int recrePeopleCount;
     // tracking if building is open
     int isFacilityClosed;  // 0 - open, 1 - closed
 } SharedMemory;
-
-typedef struct {
-    long mtype;
-    int clientPid;
-    int age;
-    int isVip;
-    int targetPool;
-    int status;
-    char text[128];
-} Msg;
 
 int createSharedMemory();
 int getSharedMemory();

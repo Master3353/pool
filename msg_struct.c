@@ -9,7 +9,7 @@
 int create_message_queue() {
     int msgid = msgget(MSG_QUEUE_KEY, IPC_CREAT | 0600);
     if (msgid == -1) {
-        perror("msgget");
+        perror("create: msgget");
         exit(EXIT_FAILURE);
     }
     return msgid;
