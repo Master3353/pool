@@ -46,8 +46,21 @@ int main() {
             perror("Error with forking client");
         }
     }
+    int status;
+    pid_t wpid;
+    while ((wpid = wait(&status)) > 0) {
+        if (WIFEXITED(status)) {
+            printf("Child with PID %d exited with status %d.\n", wpid,
+                   WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            printf("Child with PID %d was killed by signal %d.\n", wpid,
+                   WTERMSIG(status));
+        } else {
+            printf("Child with PID %d terminated abnormally.\n", wpid);
+        }
+    }
 
-    wait(NULL);
+    printf("All children have ended.\n");
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, "Pool: problem with detach shmem.\n");
     }

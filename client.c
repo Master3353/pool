@@ -22,7 +22,7 @@ void* childThread(void* arg) {
         pthread_exit(NULL);
     }
     // test
-    sleep(5);
+    // sleep(5);
 
     printf("[Thread] Child ending.\n");
 
@@ -48,14 +48,7 @@ int main(int argc, char* argv[]) {
             (child.childAge < 5)
                 ? CHILD
                 : RECRE;  // 5 and younger to CHILD, older to recre
-
-        printf("Client: I have a child %d years old. Pampers: %s\n",
-               child.childAge, child.hasPampers ? "yes" : "no");
-
-    } else {
-        printf("Client without Child.\n");
     }
-
     int poolId;
     int adultAge;
     if (hasChild) {
@@ -79,8 +72,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    printf("Client: Random age: %d years, Pool: %d\n", adultAge, poolId);
-
     int msgid = create_message_queue();
 
     msg.mtype = 1;       // normal
@@ -89,6 +80,7 @@ int main(int argc, char* argv[]) {
     msg.poolId = poolId;
     msg.isVip = 0;
     msg.hasChild = hasChild;
+    msg.childAge = 0;
     if (hasChild) {
         msg.childAge = child.childAge;
         // pool for kid
@@ -101,18 +93,20 @@ int main(int argc, char* argv[]) {
     }
     msg.status = 0;  // cashier will input this
     strcpy(msg.text, "Request to enter the pool");
-
+    // sleep(1);
     if (msgsnd(msgid, &msg, sizeof(msg_t) - sizeof(long), 0) == -1) {
         perror("Client: msgsnd request");
         exit(EXIT_FAILURE);
     }
-    printf("Client (parent): Sent request to cashier.\n");
+    // printf("Client (parent): Sent request to cashier.\n");
 
     msg_t response;
     if (msgrcv(msgid, &response, sizeof(msg_t) - sizeof(long), getpid(), 0) ==
         -1) {
         perror("Client: msgrcv response");
         exit(EXIT_FAILURE);
+    } else {
+        // printf("received\n");
     }
     // shmem
     int shmid = createSharedMemory();
@@ -138,9 +132,6 @@ int main(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
             }
         }
-        printf("Client: I'm using the pool now...\n");
-        sleep(5);
-
         printf("Client: I'm done using the pool.\n");
         // when one is done using - empty space
         if (hasChild) {

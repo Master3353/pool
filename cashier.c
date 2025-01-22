@@ -1,5 +1,12 @@
+
+
+#include <signal.h>
+
 #include "globals.h"
 #include "msg_struct.h"
+volatile sig_atomic_t time_up = 0;
+
+void handle_alarm(int sig) { time_up = 1; }
 
 int init_semaphore() {
     int semid = semget(SEM_KEY, SEM_COUNT, IPC_CREAT | 0600);
@@ -37,9 +44,21 @@ int main(void) {
         fprintf(stderr, "Cashier: problem with attach shmem.\n");
         exit(EXIT_FAILURE);
     }
+    struct sigaction sa;
+    sa.sa_handler = handle_alarm;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    if (sigaction(SIGALRM, &sa, NULL) == -1) {
+        perror("Cashier: sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+    // Ustaw alarm na 10 sekund
+    alarm(10);
     printf("Hello from cashier!\n");
 
-    while (1) {
+    while (!time_up) {
         msg_t receivedMsg;
 
         if (msgrcv(msgid, &receivedMsg, sizeof(msg_t) - sizeof(long), 0, 0) ==
@@ -51,9 +70,9 @@ int main(void) {
 
         printf(
             "Cashier: Received client PID=%d, adultAge=%d, hasChild=%d, "
-            "childAge=%d\n",
+            "childAge=%d, client pool: %d, child pool: %d\n",
             receivedMsg.pid, receivedMsg.adultAge, receivedMsg.hasChild,
-            receivedMsg.childAge);
+            receivedMsg.childAge, receivedMsg.poolId, receivedMsg.childPoolId);
         int can_enter = 1;
         char reason[MSG_SIZE] = "Enter allowed.";
 
@@ -71,12 +90,10 @@ int main(void) {
                 if (shdata->isFacilityClosed == 1) {
                     can_enter = 0;
                     strcpy(reason, "Building closed - water change.");
-                    break;
                 }
                 if (shdata->isChildOpen == 0) {
                     can_enter = 0;
                     strcpy(reason, "Olimpic closed - can't enter.");
-                    break;
                 }
                 if (receivedMsg.adultAge < 18) {
                     can_enter = 0;
@@ -84,12 +101,10 @@ int main(void) {
                            "Only adults on Olimpic.");  // probably won't happen
                     // in randomization i dont think age <18 and Olimpic can be
                     // together
-                    break;
                 }
                 if (shdata->olimpicCount >= MAX_CAPACITY_OLIMPIC) {
                     can_enter = 0;
                     strcpy(reason, "Olimpic is FULL.");
-                    break;
                 }
                 // when adult have child - he goes to recre so we need to check
                 // if child can enter alongside with adult
@@ -97,7 +112,6 @@ int main(void) {
                     if (shdata->recreCount >= MAX_CAPACITY_RECRE) {
                         can_enter = 0;
                         strcpy(reason, "Recre for child is FULL.");
-                        break;
                     }
                     // we dont need to check for average, because it will only
                     // lower - child no older then 10 will enter this so its
@@ -108,12 +122,10 @@ int main(void) {
                 if (shdata->isFacilityClosed == 1) {
                     can_enter = 0;
                     strcpy(reason, "Building closed - water change.");
-                    break;
                 }
                 if (shdata->isRecreOpen == 0) {
                     can_enter = 0;
-                    strcpy(reason, "Olimpic closed - can't enter.");
-                    break;
+                    strcpy(reason, "Recre closed - can't enter.");
                 }
                 if (shdata->recreCount >= MAX_CAPACITY_RECRE) {
                     can_enter = 0;
@@ -152,12 +164,10 @@ int main(void) {
                 if (shdata->isFacilityClosed == 1) {
                     can_enter = 0;
                     strcpy(reason, "Building closed - water change.");
-                    break;
                 }
                 if (shdata->isChildOpen == 0) {
                     can_enter = 0;
-                    strcpy(reason, "Olimpic closed - can't enter.");
-                    break;
+                    strcpy(reason, "Child closed - can't enter.");
                 }
                 // only childs and guardians, in randomizing clients we have
                 // already made sure that they will be together
@@ -217,6 +227,12 @@ int main(void) {
 
         // we nned
         msg_t response_msg;
+        response_msg.mtype = receivedMsg.pid;
+        response_msg.pid = getpid();  // PID adult
+        response_msg.adultAge = receivedMsg.adultAge;
+        response_msg.poolId = receivedMsg.poolId;
+        response_msg.isVip = 0;
+        response_msg.hasChild = receivedMsg.hasChild;
         response_msg.status = can_enter ? 1 : 0;
         strncpy(response_msg.text, reason, MSG_SIZE - 1);
         response_msg.text[MSG_SIZE - 1] = '\0';
@@ -226,15 +242,24 @@ int main(void) {
             -1) {
             perror("Cashier: msgsnd answear");
             continue;
+        } else {
+            printf("send\n");
         }
 
         if (can_enter) {
             printf("Cashier: Please enter!.\n");
         } else {
-            printf("Cashier: Refused: %s\n", reason);
+            printf("Cashier: Refused: %s\n", response_msg.text);
         }
     }
+    printf("Cashier: Ending.\n");
+    if (msgctl(msgid, IPC_RMID, NULL) == -1) {
+        perror("Cashier: msgctl IPC_RMID");
+    }
 
+    if (semctl(semid, 0, IPC_RMID) == -1) {
+        perror("Cashier: semctl IPC_RMID");
+    }
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, "Cashier: problem with detach shmem.\n");
     }

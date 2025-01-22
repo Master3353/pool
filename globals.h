@@ -17,7 +17,6 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-
 #define SHM_KEY 0x1234
 #define SEM_KEY 0x5678
 #define SEM_COUNT 1
@@ -27,9 +26,9 @@
 #define CHILD 3
 #define TIME_OPEN  // not sure yet how to implement this
 #define TIME_CLOSED
-#define MAX_CAPACITY_OLIMPIC 30
-#define MAX_CAPACITY_RECRE 60
-#define MAX_CAPACITY_CHILD 40
+#define MAX_CAPACITY_OLIMPIC 1
+#define MAX_CAPACITY_RECRE 1
+#define MAX_CAPACITY_CHILD 2
 // 1 - olimpic, 2 - recre, 3 - child
 
 typedef struct {

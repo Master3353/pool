@@ -6,7 +6,7 @@ int main(int argc, char* argv[]) {
     }
     int poolId = atoi(argv[1]);
 
-    printf("Hello from lifeguard on pool %d \n", poolId);
+    // printf("Hello from lifeguard on pool %d \n", poolId);
 
     int shmid = createSharedMemory();
     if (shmid == -1) {
@@ -20,7 +20,8 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Lifeguard: i have shmem! olimpicCount: %d\n", shdata->olimpicCount);
+    // printf("Lifeguard: i have shmem! olimpicCount: %d\n",
+    // shdata->olimpicCount);
 
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, "Lifeguard: problem with detach shmem.\n");
