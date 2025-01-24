@@ -17,6 +17,9 @@ int main() {
     }
 
     pid_t cashierPid = fork();
+    char cashierPidStr[20];
+    snprintf(cashierPidStr, sizeof(cashierPidStr), "%d", cashierPid);
+
     if (cashierPid == 0) {
         execl("./cashier", "./cashier", NULL);
         perror("Error with execl cashier");
@@ -25,18 +28,36 @@ int main() {
         perror("Error with forking cashier");
         exit(EXIT_FAILURE);
     }
-    // for testing purposes 1 lifeguard
-    pid_t lifeguardPid = fork();
-    if (lifeguardPid == 0) {
-        execl("./lifeguard", "./lifeguard", "1", NULL);
-        perror("Error with execl a lifeguard");
+    // for testing
+    pid_t childLifeguardPid = fork();
+    if (childLifeguardPid == 0) {
+        execl("./lifeguard", "./lifeguard", "1", cashierPidStr, NULL);
+        perror("Error with execl a lifeguard 1");
         exit(EXIT_FAILURE);
-    } else if (lifeguardPid < 0) {
-        perror("Error with forking lifeguard");
+    } else if (childLifeguardPid < 0) {
+        perror("Error with forking lifeguard 1");
+        exit(EXIT_FAILURE);
+    }
+    pid_t recreLifeguardPid = fork();
+    if (recreLifeguardPid == 0) {
+        execl("./lifeguard", "./lifeguard", "2", cashierPidStr, NULL);
+        perror("Error with execl a lifeguard 2");
+        exit(EXIT_FAILURE);
+    } else if (recreLifeguardPid < 0) {
+        perror("Error with forking lifeguard 2");
+        exit(EXIT_FAILURE);
+    }
+    pid_t olimpicLifeguardPid = fork();
+    if (olimpicLifeguardPid == 0) {
+        execl("./lifeguard", "./lifeguard", "3", cashierPidStr, NULL);
+        perror("Error with execl a lifeguard 3");
+        exit(EXIT_FAILURE);
+    } else if (olimpicLifeguardPid < 0) {
+        perror("Error with forking lifeguard 3");
         exit(EXIT_FAILURE);
     }
     // Making clients
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 30; i++) {
         pid_t clientPid = fork();
         if (clientPid == 0) {
             execl("./client", "./client", NULL);
@@ -45,16 +66,17 @@ int main() {
         } else if (clientPid < 0) {
             perror("Error with forking client");
         }
+        usleep(500000);
     }
     int status;
     pid_t wpid;
     while ((wpid = wait(&status)) > 0) {
         if (WIFEXITED(status)) {
-            printf("Child with PID %d exited with status %d.\n", wpid,
-                   WEXITSTATUS(status));
+            // printf("Child with PID %d exited with status %d.\n", wpid,
+            //        WEXITSTATUS(status));
         } else if (WIFSIGNALED(status)) {
-            printf("Child with PID %d was killed by signal %d.\n", wpid,
-                   WTERMSIG(status));
+            // printf("Child with PID %d was killed by signal %d.\n", wpid,
+            //       WTERMSIG(status));
         } else {
             printf("Child with PID %d terminated abnormally.\n", wpid);
         }

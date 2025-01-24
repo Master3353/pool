@@ -1,12 +1,27 @@
 #include "globals.h"
+// variable
+// static volatile sig_atomic_t shouldClose = 0;
+
+// void sigusr1Handler(int sig) {
+//     if (sig == SIGUSR1) {
+//         shouldClose = 1;
+//     }
+// }
+
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Użycie: %s <poolId>\n", argv[0]);
+    // takes on which pool he is staying and cashier pid for comunication
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <poolId> <cashierPid>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     int poolId = atoi(argv[1]);
+    int cashierPid = (pid_t)atoi(argv[2]);
 
-    // printf("Hello from lifeguard on pool %d \n", poolId);
+    // struct sigaction sa;
+    // sa.sa_handler = sigusr1Handler;
+    // sigemptyset(&sa.sa_mask);
+    // sa.sa_flags = 0;
+    // sigaction(SIGUSR1, &sa, NULL);
 
     int shmid = createSharedMemory();
     if (shmid == -1) {

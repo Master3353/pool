@@ -17,6 +17,8 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+
+#define LIFEGUARD_FIFO "/tmp/lifeguard_fifo"
 #define SHM_KEY 0x1234
 #define SEM_KEY 0x5678
 #define SEM_COUNT 1
@@ -26,9 +28,9 @@
 #define CHILD 3
 #define TIME_OPEN  // not sure yet how to implement this
 #define TIME_CLOSED
-#define MAX_CAPACITY_OLIMPIC 10
-#define MAX_CAPACITY_RECRE 10
-#define MAX_CAPACITY_CHILD 20
+#define MAX_CAPACITY_OLIMPIC 1
+#define MAX_CAPACITY_RECRE 1
+#define MAX_CAPACITY_CHILD 2
 // 1 - olimpic, 2 - recre, 3 - child
 
 // define colors for better output
@@ -40,6 +42,8 @@
 #define END "\033[0m"
 
 typedef struct {
+    pthread_mutex_t mutex;
+
     // current population in different pools
     int olimpicCount;
     int recreCount;
@@ -54,12 +58,18 @@ typedef struct {
     int isFacilityClosed;  // 0 - open, 1 - closed
 } SharedMemory;
 
+// functions for shared mem
 int createSharedMemory();
 int getSharedMemory();
 SharedMemory* attachSharedMemory(int shmid);
 int detachSharedMemory(SharedMemory* shdata);
 int destroySharedMemory(int shmid);
 void initializeSharedData(SharedMemory* shdata);
+
+// functions for fifo
+int createFifo();
+int openFifoRead();
+int openFifoWrite();
 
 void checkInput();
 

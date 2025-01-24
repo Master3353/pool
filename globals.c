@@ -68,6 +68,15 @@ void initializeSharedData(SharedMemory* shdata) {
         fprintf(stderr, "initializeSharedData: shdata is NULL\n");
         return;
     }
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+
+    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+
+    if (pthread_mutex_init(&shdata->mutex, &attr) != 0) {
+        perror("Cashier: Mutex initialization failed");
+        exit(EXIT_FAILURE);
+    }
 
     shdata->olimpicCount = 0;
     shdata->recreCount = 0;
@@ -77,6 +86,36 @@ void initializeSharedData(SharedMemory* shdata) {
     shdata->isRecreOpen = 1;
     shdata->isChildOpen = 1;
     shdata->isFacilityClosed = 0;
+}
+
+/*
+    *Creating new FIFO for communication between lifeguards and cashier
+    *deleting any old file, when there is one
+
+*/
+int createFifo() {
+    unlink(LIFEGUARD_FIFO);  // delete old FIFO
+    if (mkfifo(LIFEGUARD_FIFO, 0600) == -1) {
+        perror("createFifo: mkfifo");
+        return -1;
+    }
+    return 0;
+}
+
+int openFifoRead() {
+    int fd = open(LIFEGUARD_FIFO, O_RDONLY);
+    if (fd < 0) {
+        perror("openFifoRead");
+    }
+    return fd;
+}
+
+int openFifoWrite() {
+    int fd = open(LIFEGUARD_FIFO, O_WRONLY);
+    if (fd < 0) {
+        perror("openFifoWrite");
+    }
+    return fd;
 }
 void checkInput() {
     if (MAX_CAPACITY_CHILD < 2) {

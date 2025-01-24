@@ -5,8 +5,11 @@
 #include "globals.h"
 #include "msg_struct.h"
 volatile sig_atomic_t time_up = 0;
+static int closedPoolsCount = 0;  // track closed pools
 
-void handle_alarm(int sig) { time_up = 1; }
+// funtion for writing to fifo
+void fifoWriteLine(int fd, const char *line) { write(fd, line, strlen(line)); }
+void handleAlarm(int sig) { time_up = 1; }
 
 int init_semaphore() {
     int semid = semget(SEM_KEY, SEM_COUNT, IPC_CREAT | 0600);
@@ -30,7 +33,42 @@ int init_semaphore() {
     return semid;
 }
 
+/*
+    * Function for receiving messages from queue
+    * prioritize clients with VIP status
+    * mtype = 1 means VIP, mtype = 2 means normal client
+
+*/
+void validateCounters(SharedMemory *shdata) {
+    if (shdata->olimpicCount < 0) shdata->olimpicCount = 0;
+    if (shdata->recreCount < 0) shdata->recreCount = 0;
+    if (shdata->childCount < 0) shdata->childCount = 0;
+}
+int receiveMessage(int msgid, msg_t *msg) {
+    if (msgrcv(msgid, msg, sizeof(msg_t) - sizeof(long), 1, IPC_NOWAIT) != -1) {
+        return 1;  // VIP
+    }
+    if (msgrcv(msgid, msg, sizeof(msg_t) - sizeof(long), 2, IPC_NOWAIT) != -1) {
+        return 2;  // normal
+    }
+    return 0;
+}
 int main(void) {
+    // if (createFifo() == -1) {
+    //     fprintf(stderr, RED "[Cashier] Cannot create FIFO" END "\n");
+    //     return 1;
+    // }
+    // // opening FIFO in both modes
+    // int fdRead = openFifoRead();
+    // if (fdRead < 0) {
+    //     fprintf(stderr, "[Cashier] openFifoRead error.\n");
+    //     return 1;
+    // }
+    // int fdWrite = openFifoWrite();
+    // if (fdWrite < 0) {
+    //     fprintf(stderr, "[Cashier] openFifoWrite error.\n");
+    //     return 1;
+    // }
     int msgid = create_message_queue();
     int semid = init_semaphore();
     int shmid = createSharedMemory();
@@ -45,7 +83,7 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
     struct sigaction sa;
-    sa.sa_handler = handle_alarm;
+    sa.sa_handler = handleAlarm;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
 
@@ -54,29 +92,10 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
-    // Ustaw alarm na 10 sekund
-    alarm(10);
+    alarm(15);
     // printf("Hello from cashier!\n");
 
     while (!time_up) {
-        msg_t receivedMsg;
-
-        if (msgrcv(msgid, &receivedMsg, sizeof(msg_t) - sizeof(long), 0, 0) ==
-            -1) {
-            if (errno == EINTR) continue;
-            perror("Cashier: msgrcv error");
-            break;
-        }
-
-        printf(BLUE
-               "Cashier: Received client PID=%d, adultAge=%d, hasChild=%d, "
-               "childAge=%d, client pool: %d, child pool: %d" END "\n",
-               receivedMsg.pid, receivedMsg.adultAge, receivedMsg.hasChild,
-               receivedMsg.childAge, receivedMsg.poolId,
-               receivedMsg.childPoolId);
-        int can_enter = 1;
-        char reason[MSG_SIZE] = "Enter allowed.";
-
         struct sembuf sb;
         sb.sem_num = 0;
         sb.sem_op = -1;  // P
@@ -85,6 +104,32 @@ int main(void) {
             perror("Cashier: semop P");
             continue;
         }
+        msg_t receivedMsg;
+        int msgType = receiveMessage(msgid, &receivedMsg);
+        if (msgType == 1) {
+            printf("VIP Client received: PID=%d\n", receivedMsg.pid);
+        } else if (msgType == 2) {
+            printf("Regular Client received: PID=%d\n", receivedMsg.pid);
+        } else {
+            // printf("No client message received.\n");
+        }
+        if (msgType == 0) {
+            sb.sem_op = 1;  // unlock sem
+            if (semop(semid, &sb, 1) == -1) {
+                perror("Cashier: semop V");
+            }
+            continue;
+        }
+        printf(BLUE
+               "Cashier: Received client PID=%d, VIP=%ld, adultAge=%d, "
+               "hasChild=%d, "
+               "childAge=%d, client pool: %d, child pool: %d" END "\n",
+               receivedMsg.pid, receivedMsg.mtype, receivedMsg.adultAge,
+               receivedMsg.hasChild, receivedMsg.childAge, receivedMsg.poolId,
+               receivedMsg.childPoolId);
+
+        int can_enter = 1;
+        char reason[MSG_SIZE] = "Enter allowed.";
 
         switch (receivedMsg.poolId) {
             case OLIMPIC:
@@ -193,6 +238,8 @@ int main(void) {
 
         // update capacity
         if (can_enter) {
+            pthread_mutex_lock(&shdata->mutex);  // lock access
+
             switch (receivedMsg.poolId) {
                 case OLIMPIC:
                     shdata->olimpicCount++;
@@ -217,16 +264,9 @@ int main(void) {
                         2;  // +2 because guardian will also enter
                     break;
             }
+            pthread_mutex_unlock(&shdata->mutex);  // unlock
         }
 
-        // Wyjście z sekcji krytycznej
-        sb.sem_op = 1;  // V
-        if (semop(semid, &sb, 1) == -1) {
-            perror("Cashier: semop V");
-            continue;
-        }
-
-        // we nned
         msg_t response_msg;
         response_msg.mtype = receivedMsg.pid;
         response_msg.pid = getpid();  // PID adult
@@ -235,20 +275,41 @@ int main(void) {
         response_msg.isVip = 0;
         response_msg.hasChild = receivedMsg.hasChild;
         response_msg.status = can_enter ? 1 : 0;
-        strncpy(response_msg.text, reason, MSG_SIZE - 1);
+        if (can_enter) {
+            snprintf(response_msg.text, MSG_SIZE,
+                     "Enter allowed. Current status: Olimpic: %d/%d, Recre: "
+                     "%d/%d, Child: %d/%d.",
+                     shdata->olimpicCount, MAX_CAPACITY_OLIMPIC,
+                     shdata->recreCount, MAX_CAPACITY_RECRE, shdata->childCount,
+                     MAX_CAPACITY_CHILD);
+        } else {
+            snprintf(response_msg.text, MSG_SIZE,
+                     "Refused: %s. Current status: Olimpic: %d/%d, Recre: "
+                     "%d/%d, Child: %d/%d.",
+                     reason, shdata->olimpicCount, MAX_CAPACITY_OLIMPIC,
+                     shdata->recreCount, MAX_CAPACITY_RECRE, shdata->childCount,
+                     MAX_CAPACITY_CHILD);
+        }
         response_msg.text[MSG_SIZE - 1] = '\0';
-
-        // Wysyłanie odpowiedzi
+        validateCounters(shdata);
+        // send response
         if (msgsnd(msgid, &response_msg, sizeof(msg_t) - sizeof(long), 0) ==
             -1) {
             perror("Cashier: msgsnd answear");
             continue;
         } else {
-            // printf("send\n");
+            printf(GREEN "Response sent to client PID=%d." END "\n",
+                   response_msg.mtype);
         }
 
         if (!can_enter) {
             printf(YELLOW "Cashier: Refused: %s" END "\n", response_msg.text);
+        }
+        // quit critical section
+        sb.sem_op = 1;  // V
+        if (semop(semid, &sb, 1) == -1) {
+            perror("Cashier: semop V");
+            continue;
         }
     }
     printf("Cashier: Ending.\n");

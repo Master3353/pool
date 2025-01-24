@@ -11,7 +11,7 @@ int randRange(int min, int max) { return min + rand() % (max - min + 1); }
 void* childThread(void* arg) {
     Child* child = (Child*)arg;
 
-    int shmid = getSharedMemory();
+    int shmid = createSharedMemory();
     if (shmid == -1) {
         fprintf(stderr, RED "Thread: error getSharedMemory." END "\n");
         pthread_exit(NULL);
@@ -66,14 +66,14 @@ int main(int argc, char* argv[]) {
             poolId =
                 randRange(OLIMPIC, RECRE);  // adult can go to olimpic/recre
         } else {
-            poolId = RECRE;  // tenn needs to be in recre pool
+            poolId = RECRE;  // teen needs to be in recre pool
         }
     }
 
     int msgid = create_message_queue();
 
-    msg.mtype = 1;       // normal
-    msg.pid = getpid();  // PID adult
+    msg.mtype = randRange(1, 2);  // random vip right now
+    msg.pid = getpid();           // PID adult
     msg.adultAge = adultAge;
     msg.poolId = poolId;
     msg.isVip = 0;
@@ -123,8 +123,14 @@ int main(int argc, char* argv[]) {
                getpid(), response.text);
         return 0;
     } else {
-        printf(GREEN "Client (%d): Access granted. Info: %s" END "\n", msg.pid,
-               response.text);
+        if (msg.mtype == 2) {
+            printf(GREEN "VIP Client (%d): Access granted. Info: %s" END "\n",
+                   msg.pid, response.text);
+        } else {
+            printf(GREEN "Client (%d): Access granted. Info: %s" END "\n",
+                   msg.pid, response.text);
+        }
+
         if (hasChild) {
             // create only if you can enter
             if (pthread_create(&thread, NULL, childThread, &child) != 0) {
@@ -135,20 +141,47 @@ int main(int argc, char* argv[]) {
         // when one is done using - empty space
         if (hasChild) {
             pthread_join(thread, NULL);
-            sleep(10);
-            // printf(BLUE "Child of %d ending." END "\n", msg.pid);
+            sleep(1);
+            //  printf(BLUE "Child of %d ending." END "\n", msg.pid);
         }
-        sleep(5);  // entered for 5sec
+        sleep(1);                            // entered for 1sec
+        pthread_mutex_lock(&shdata->mutex);  // locked
+
+        switch (msg.poolId) {
+            case OLIMPIC:
+                shdata->olimpicCount--;
+                // if adult in olimpic have child, child will be in recre
+                if (msg.hasChild) {
+                    shdata->recreCount--;
+                    shdata->recreSumAge -= msg.childAge;
+                }
+                break;
+            case RECRE:
+                shdata->recreCount--;
+                shdata->recreSumAge -= msg.adultAge;
+                // if adult in recre have child, child will be in recre
+                if (msg.hasChild) {
+                    shdata->recreCount--;
+                    shdata->recreSumAge -= msg.childAge;
+                }
+
+                break;
+            case CHILD:
+                shdata->childCount -= 2;  // -2 because guardian will also leave
+                break;
+        }
+        pthread_mutex_unlock(&shdata->mutex);  // unlock
+        if (hasChild) {
+            printf(BLUE "Im %d leaving the pool with child \n" END "\n",
+                   msg.pid);
+
+        } else {
+            printf(BLUE "Im %d leaving the pool \n" END "\n", msg.pid);
+        }
     }
 
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, RED "Client: problem with detach shmem." END "\n");
-    }
-    if (hasChild) {
-        printf(BLUE "Im %d leaving the pool with child \n" END "\n", msg.pid);
-
-    } else {
-        printf(BLUE "Im %d leaving the pool \n" END "\n", msg.pid);
     }
     return 0;
 }
