@@ -13,18 +13,16 @@ void* childThread(void* arg) {
 
     int shmid = getSharedMemory();
     if (shmid == -1) {
-        fprintf(stderr, "Thread: error getSharedMemory.\n");
+        fprintf(stderr, RED "Thread: error getSharedMemory." END "\n");
         pthread_exit(NULL);
     }
     SharedMemory* shdata = attachSharedMemory(shmid);
     if (shdata == (void*)-1) {
-        fprintf(stderr, "Thread: error attachSharedMemory.\n");
+        fprintf(stderr, RED "Thread: error attachSharedMemory." END "\n");
         pthread_exit(NULL);
     }
     // test
     // sleep(5);
-
-    printf("[Thread] Child ending.\n");
 
     detachSharedMemory(shdata);
 
@@ -34,7 +32,7 @@ void* childThread(void* arg) {
 int main(int argc, char* argv[]) {
     srand(time(NULL) ^ getpid());
     if (argc < 1) {
-        fprintf(stderr, "Wrong arguments: %s\n", argv[0]);
+        fprintf(stderr, RED "Wrong arguments: %s" END "\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     int hasChild = randRange(0, 1);  // 0 - no child, 1 - child
@@ -93,7 +91,7 @@ int main(int argc, char* argv[]) {
     }
     msg.status = 0;  // cashier will input this
     strcpy(msg.text, "Request to enter the pool");
-    // sleep(1);
+
     if (msgsnd(msgid, &msg, sizeof(msg_t) - sizeof(long), 0) == -1) {
         perror("Client: msgsnd request");
         exit(EXIT_FAILURE);
@@ -111,20 +109,22 @@ int main(int argc, char* argv[]) {
     // shmem
     int shmid = createSharedMemory();
     if (shmid == -1) {
-        fprintf(stderr, "Client: Probelm with getting shmem.\n");
+        fprintf(stderr, RED "Client: Probelm with getting shmem." END "\n");
         exit(EXIT_FAILURE);
     }
 
     SharedMemory* shdata = attachSharedMemory(shmid);
     if (shdata == (void*)-1) {
-        fprintf(stderr, "Client: problem with attach shmem.\n");
+        fprintf(stderr, RED "Client: problem with attach shmem." END "\n");
         exit(EXIT_FAILURE);
     }
     if (response.status != 1) {
-        printf("Client (parent): Access denied. Reason: %s\n", response.text);
+        printf(YELLOW "Client (%d): Access denied. Reason: %s" END "\n",
+               getpid(), response.text);
         return 0;
     } else {
-        printf("Client (parent): Access granted. Info: %s\n", response.text);
+        printf(GREEN "Client (%d): Access granted. Info: %s" END "\n", msg.pid,
+               response.text);
         if (hasChild) {
             // create only if you can enter
             if (pthread_create(&thread, NULL, childThread, &child) != 0) {
@@ -132,18 +132,23 @@ int main(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
             }
         }
-        printf("Client: I'm done using the pool.\n");
         // when one is done using - empty space
         if (hasChild) {
             pthread_join(thread, NULL);
-            printf("Client: Child ended.\n");
+            sleep(10);
+            // printf(BLUE "Child of %d ending." END "\n", msg.pid);
         }
+        sleep(5);  // entered for 5sec
     }
 
     if (detachSharedMemory(shdata) == -1) {
-        fprintf(stderr, "Client: problem with detach shmem.\n");
+        fprintf(stderr, RED "Client: problem with detach shmem." END "\n");
     }
+    if (hasChild) {
+        printf(BLUE "Im %d leaving the pool with child \n" END "\n", msg.pid);
 
-    printf("Im %d leaving the pool \n", getpid());
+    } else {
+        printf(BLUE "Im %d leaving the pool \n" END "\n", msg.pid);
+    }
     return 0;
 }

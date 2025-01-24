@@ -26,10 +26,18 @@
 #define CHILD 3
 #define TIME_OPEN  // not sure yet how to implement this
 #define TIME_CLOSED
-#define MAX_CAPACITY_OLIMPIC 1
-#define MAX_CAPACITY_RECRE 1
-#define MAX_CAPACITY_CHILD 2
+#define MAX_CAPACITY_OLIMPIC 10
+#define MAX_CAPACITY_RECRE 10
+#define MAX_CAPACITY_CHILD 20
 // 1 - olimpic, 2 - recre, 3 - child
+
+// define colors for better output
+#define RED "\033[0;31m"
+#define GREEN "\033[0;32m"
+#define YELLOW "\033[0;33m"
+#define BLUE "\033[0;34m"
+#define WHITE "\033[0;37m"
+#define END "\033[0m"
 
 typedef struct {
     // current population in different pools

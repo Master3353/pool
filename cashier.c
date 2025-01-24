@@ -35,13 +35,13 @@ int main(void) {
     int semid = init_semaphore();
     int shmid = createSharedMemory();
     if (shmid == -1) {
-        fprintf(stderr, "Cashier: Probelm with getting shmem.\n");
+        fprintf(stderr, RED "Cashier: Probelm with getting shmem." END "\n");
         exit(EXIT_FAILURE);
     }
 
     SharedMemory *shdata = attachSharedMemory(shmid);
     if (shdata == (void *)-1) {
-        fprintf(stderr, "Cashier: problem with attach shmem.\n");
+        fprintf(stderr, RED "Cashier: problem with attach shmem." END "\n");
         exit(EXIT_FAILURE);
     }
     struct sigaction sa;
@@ -56,7 +56,7 @@ int main(void) {
 
     // Ustaw alarm na 10 sekund
     alarm(10);
-    printf("Hello from cashier!\n");
+    // printf("Hello from cashier!\n");
 
     while (!time_up) {
         msg_t receivedMsg;
@@ -68,11 +68,12 @@ int main(void) {
             break;
         }
 
-        printf(
-            "Cashier: Received client PID=%d, adultAge=%d, hasChild=%d, "
-            "childAge=%d, client pool: %d, child pool: %d\n",
-            receivedMsg.pid, receivedMsg.adultAge, receivedMsg.hasChild,
-            receivedMsg.childAge, receivedMsg.poolId, receivedMsg.childPoolId);
+        printf(BLUE
+               "Cashier: Received client PID=%d, adultAge=%d, hasChild=%d, "
+               "childAge=%d, client pool: %d, child pool: %d" END "\n",
+               receivedMsg.pid, receivedMsg.adultAge, receivedMsg.hasChild,
+               receivedMsg.childAge, receivedMsg.poolId,
+               receivedMsg.childPoolId);
         int can_enter = 1;
         char reason[MSG_SIZE] = "Enter allowed.";
 
@@ -243,13 +244,11 @@ int main(void) {
             perror("Cashier: msgsnd answear");
             continue;
         } else {
-            printf("send\n");
+            // printf("send\n");
         }
 
-        if (can_enter) {
-            printf("Cashier: Please enter!.\n");
-        } else {
-            printf("Cashier: Refused: %s\n", response_msg.text);
+        if (!can_enter) {
+            printf(YELLOW "Cashier: Refused: %s" END "\n", response_msg.text);
         }
     }
     printf("Cashier: Ending.\n");
@@ -261,7 +260,7 @@ int main(void) {
         perror("Cashier: semctl IPC_RMID");
     }
     if (detachSharedMemory(shdata) == -1) {
-        fprintf(stderr, "Cashier: problem with detach shmem.\n");
+        fprintf(stderr, RED "Cashier: problem with detach shmem." END "\n");
     }
     return 0;
 }

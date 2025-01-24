@@ -35,8 +35,8 @@ int main() {
         perror("Error with forking lifeguard");
         exit(EXIT_FAILURE);
     }
-    // Making 5 clients
-    for (int i = 0; i < 5; i++) {
+    // Making clients
+    for (int i = 0; i < 3; i++) {
         pid_t clientPid = fork();
         if (clientPid == 0) {
             execl("./client", "./client", NULL);
