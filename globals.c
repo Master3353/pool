@@ -92,26 +92,63 @@ void initializeSharedData(SharedMemory* shdata) {
  *FIFO for keeping track of clients in specific pools
  *Will be needed for closing pools, so lifeguard can force clients to leave
  */
-
+void dummyRead(const char* fifoName) {
+    int fd = open(fifoName, O_RDONLY | O_NONBLOCK);
+    if (fd == -1) {
+        perror("Dummy read failed");
+        return;
+    }
+    // close(fd);
+}
 void createFifo(const char* fifoName) {
     if (mkfifo(fifoName, 0666) == -1 && errno != EEXIST) {
         perror("Error creating FIFO");
         exit(EXIT_FAILURE);
+    } else {
+        printf("Created FIFO %s\n", fifoName);
     }
 }
-void addPidToFifo(const char* fifoName, pid_t pid) {
-    // if (access(fifoName, F_OK) != 0) {
-    //     fprintf(stderr, "FIFO %s does not exist\n", fifoName);
-    //     return;
-    // } else {
-    //     printf("FIFO %s exists\n", fifoName);
-    // }
-    // int dummyFd = open(fifoName, O_RDONLY | O_NONBLOCK);
-    // if (dummyFd != -1) {
-    //     close(dummyFd);
-    // }
+int initFifoSemaphore() {
+    int semid = semget(FIFO_SEM_KEY, 1, IPC_CREAT | 0666);  // 1 semafor
+    if (semid == -1) {
+        perror("Error creating semaphore");
+        exit(EXIT_FAILURE);
+    }
+
+    // Ustawienie wartości początkowej semafora na 1 (dostępne)
+    if (semctl(semid, 0, SETVAL, 1) == -1) {
+        perror("Error initializing semaphore");
+        exit(EXIT_FAILURE);
+    }
+
+    return semid;
+}
+void fifoSemaphoreLock(int semid) {
+    struct sembuf sb = {0, -1, 0};  // Opis operacji P (zmniejszenie o 1)
+    if (semop(semid, &sb, 1) == -1) {
+        perror("Error locking semaphore");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Funkcja odblokowująca semafor
+void fifoSemaphoreUnlock(int semid) {
+    struct sembuf sb = {0, 1, 0};  // Opis operacji V (zwiększenie o 1)
+    if (semop(semid, &sb, 1) == -1) {
+        perror("Error unlocking semaphore");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void addPidToFifo(const char* fifoName, pid_t pid, int fifoSemid) {
+    fifoSemaphoreLock(fifoSemid);
     int fd = open(fifoName, O_WRONLY | O_NONBLOCK);
+    if (access(fifoName, F_OK) != 0) {
+        fprintf(stderr, "FIFO %s does not exist\n", fifoName);
+        return;
+    }
     if (fd == -1) {
+        printf("FIFO %s\n", fifoName);
         perror("Error opening FIFO");
         return;
     }
@@ -121,6 +158,8 @@ void addPidToFifo(const char* fifoName, pid_t pid) {
     }
 
     close(fd);
+
+    fifoSemaphoreUnlock(fifoSemid);
 }
 
 void checkInput() {

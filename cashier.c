@@ -7,17 +7,8 @@
 volatile sig_atomic_t time_up = 0;
 static int closedPoolsCount = 0;  // track closed pools
 
-// funtion for writing to fifo
-void fifoWriteLine(int fd, const char *line) { write(fd, line, strlen(line)); }
 void handleAlarm(int sig) { time_up = 1; }
-void dummyRead(const char *fifoName) {
-    int fd = open(fifoName, O_RDONLY | O_NONBLOCK);
-    if (fd == -1) {
-        perror("Dummy read failed");
-        return;
-    }
-    close(fd);
-}
+
 int init_semaphore() {
     int semid = semget(SEM_KEY, SEM_COUNT, IPC_CREAT | 0600);
     if (semid == -1) {
@@ -61,28 +52,7 @@ int receiveMessage(int msgid, msg_t *msg) {
     return 0;
 }
 int main(void) {
-    // create FIFOs for communication between lifeguards and clients
-    createFifo("fifo_olimpic");
-    createFifo("fifo_recre");
-    createFifo("fifo_child");
-    dummyRead("fifo_olimpic");
-    dummyRead("fifo_recre");
-    dummyRead("fifo_child");
-    // if (createFifo() == -1) {
-    //     fprintf(stderr, RED "[Cashier] Cannot create FIFO" END "\n");
-    //     return 1;
-    // }
-    // // opening FIFO in both modes
-    // int fdRead = openFifoRead();
-    // if (fdRead < 0) {
-    //     fprintf(stderr, "[Cashier] openFifoRead error.\n");
-    //     return 1;
-    // }
-    // int fdWrite = openFifoWrite();
-    // if (fdWrite < 0) {
-    //     fprintf(stderr, "[Cashier] openFifoWrite error.\n");
-    //     return 1;
-    // }
+    int fifoSemid = initFifoSemaphore();
     int msgid = create_message_queue();
     int semid = init_semaphore();
     int shmid = createSharedMemory();
@@ -331,7 +301,9 @@ int main(void) {
     if (msgctl(msgid, IPC_RMID, NULL) == -1) {
         perror("Cashier: msgctl IPC_RMID");
     }
-
+    if (semctl(fifoSemid, 0, IPC_RMID) == -1) {
+        perror("Error removing semaphore");
+    }
     if (semctl(semid, 0, IPC_RMID) == -1) {
         perror("Cashier: semctl IPC_RMID");
     }

@@ -21,6 +21,7 @@
 #define LIFEGUARD_FIFO "/tmp/lifeguard_fifo"
 #define SHM_KEY 0x1234
 #define SEM_KEY 0x5678
+#define FIFO_SEM_KEY 0x5000
 #define SEM_COUNT 1
 
 #define OLIMPIC 1
@@ -29,7 +30,7 @@
 #define TIME_OPEN  // not sure yet how to implement this
 #define TIME_CLOSED
 #define MAX_CAPACITY_OLIMPIC 1
-#define MAX_CAPACITY_RECRE 1
+#define MAX_CAPACITY_RECRE 2
 #define MAX_CAPACITY_CHILD 2
 // 1 - olimpic, 2 - recre, 3 - child
 
@@ -68,9 +69,11 @@ void initializeSharedData(SharedMemory* shdata);
 
 // functions for fifo
 void createFifo(const char* fifoName);
-void addPidToFifo(const char* fifoName, pid_t pid);
-int openFifoRead();
-int openFifoWrite();
+void addPidToFifo(const char* fifoName, pid_t pid, int fifoSemid);
+void dummmyRead(const char* fifoName);
+int initFifoSemaphore();
+void fifoSemaphoreUnlock(int semid);
+void fifoSemaphoreLock(int semid);
 
 void checkInput();
 

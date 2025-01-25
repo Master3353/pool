@@ -12,4 +12,4 @@ client: client.c globals.c msg_struct.c
 	gcc $(CFLAGS) -o client client.c globals.c msg_struct.c 
 			
 clean:
-	rm -f pool  cashier lifeguard client
+	rm -f pool  cashier lifeguard client fifo_child fifo_olimpic fifo_recre

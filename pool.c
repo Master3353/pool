@@ -15,7 +15,14 @@ int main() {
         fprintf(stderr, "Pool: problem with attach shmem.\n");
         exit(EXIT_FAILURE);
     }
-
+    int fifoSemid = initFifoSemaphore();
+    // create FIFOs for communication between lifeguards and clients
+    createFifo("fifo_olimpic");
+    createFifo("fifo_recre");
+    createFifo("fifo_child");
+    dummyRead("fifo_olimpic");
+    dummyRead("fifo_recre");
+    dummyRead("fifo_child");
     pid_t cashierPid = fork();
     char cashierPidStr[20];
     snprintf(cashierPidStr, sizeof(cashierPidStr), "%d", cashierPid);
@@ -28,7 +35,6 @@ int main() {
         perror("Error with forking cashier");
         exit(EXIT_FAILURE);
     }
-    // for testing
     // pid_t childLifeguardPid = fork();
     // if (childLifeguardPid == 0) {
     //     execl("./lifeguard", "./lifeguard", "1", cashierPidStr, NULL);
@@ -57,7 +63,7 @@ int main() {
     //     exit(EXIT_FAILURE);
     // }
     // Making clients
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 10; i++) {
         pid_t clientPid = fork();
         if (clientPid == 0) {
             execl("./client", "./client", NULL);
@@ -66,7 +72,7 @@ int main() {
         } else if (clientPid < 0) {
             perror("Error with forking client");
         }
-        usleep(500000);
+        usleep(1000000);
     }
     int status;
     pid_t wpid;
@@ -82,7 +88,7 @@ int main() {
         }
     }
 
-    printf("All children have ended.\n");
+    printf("All children have ended. Ending program\n");
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, "Pool: problem with detach shmem.\n");
     }
