@@ -89,34 +89,40 @@ void initializeSharedData(SharedMemory* shdata) {
 }
 
 /*
-    *Creating new FIFO for communication between lifeguards and cashier
-    *deleting any old file, when there is one
+ *FIFO for keeping track of clients in specific pools
+ *Will be needed for closing pools, so lifeguard can force clients to leave
+ */
 
-*/
-int createFifo() {
-    unlink(LIFEGUARD_FIFO);  // delete old FIFO
-    if (mkfifo(LIFEGUARD_FIFO, 0600) == -1) {
-        perror("createFifo: mkfifo");
-        return -1;
+void createFifo(const char* fifoName) {
+    if (mkfifo(fifoName, 0666) == -1 && errno != EEXIST) {
+        perror("Error creating FIFO");
+        exit(EXIT_FAILURE);
     }
-    return 0;
+}
+void addPidToFifo(const char* fifoName, pid_t pid) {
+    // if (access(fifoName, F_OK) != 0) {
+    //     fprintf(stderr, "FIFO %s does not exist\n", fifoName);
+    //     return;
+    // } else {
+    //     printf("FIFO %s exists\n", fifoName);
+    // }
+    // int dummyFd = open(fifoName, O_RDONLY | O_NONBLOCK);
+    // if (dummyFd != -1) {
+    //     close(dummyFd);
+    // }
+    int fd = open(fifoName, O_WRONLY | O_NONBLOCK);
+    if (fd == -1) {
+        perror("Error opening FIFO");
+        return;
+    }
+
+    if (dprintf(fd, "%d\n", pid) < 0) {
+        perror("Error writing PID to FIFO");
+    }
+
+    close(fd);
 }
 
-int openFifoRead() {
-    int fd = open(LIFEGUARD_FIFO, O_RDONLY);
-    if (fd < 0) {
-        perror("openFifoRead");
-    }
-    return fd;
-}
-
-int openFifoWrite() {
-    int fd = open(LIFEGUARD_FIFO, O_WRONLY);
-    if (fd < 0) {
-        perror("openFifoWrite");
-    }
-    return fd;
-}
 void checkInput() {
     if (MAX_CAPACITY_CHILD < 2) {
         fprintf(stderr, "Child pool needs to have at least 2 spots.\n");

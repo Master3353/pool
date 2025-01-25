@@ -71,7 +71,18 @@ int main(int argc, char* argv[]) {
     }
 
     int msgid = create_message_queue();
+    // shmem
+    int shmid = createSharedMemory();
+    if (shmid == -1) {
+        fprintf(stderr, RED "Client: Probelm with getting shmem." END "\n");
+        exit(EXIT_FAILURE);
+    }
 
+    SharedMemory* shdata = attachSharedMemory(shmid);
+    if (shdata == (void*)-1) {
+        fprintf(stderr, RED "Client: problem with attach shmem." END "\n");
+        exit(EXIT_FAILURE);
+    }
     msg.mtype = randRange(1, 2);  // random vip right now
     msg.pid = getpid();           // PID adult
     msg.adultAge = adultAge;
@@ -106,18 +117,7 @@ int main(int argc, char* argv[]) {
     } else {
         // printf("received\n");
     }
-    // shmem
-    int shmid = createSharedMemory();
-    if (shmid == -1) {
-        fprintf(stderr, RED "Client: Probelm with getting shmem." END "\n");
-        exit(EXIT_FAILURE);
-    }
 
-    SharedMemory* shdata = attachSharedMemory(shmid);
-    if (shdata == (void*)-1) {
-        fprintf(stderr, RED "Client: problem with attach shmem." END "\n");
-        exit(EXIT_FAILURE);
-    }
     if (response.status != 1) {
         printf(YELLOW "Client (%d): Access denied. Reason: %s" END "\n",
                getpid(), response.text);
@@ -131,6 +131,26 @@ int main(int argc, char* argv[]) {
                    msg.pid, response.text);
         }
 
+        //
+        const char* fifoName = NULL;
+        switch (msg.poolId) {
+            case OLIMPIC:
+                fifoName = "./fifo_olimpic";
+                break;
+            case RECRE:
+                fifoName = "./fifo_recre";
+                break;
+            case CHILD:
+                fifoName = "./fifo_child";
+                break;
+            default:
+                fprintf(stderr, RED "Unknown pool ID" END "\n");
+                exit(EXIT_FAILURE);
+                break;
+        }
+        if (fifoName) {
+            addPidToFifo(fifoName, getpid());
+        }
         if (hasChild) {
             // create only if you can enter
             if (pthread_create(&thread, NULL, childThread, &child) != 0) {
@@ -138,14 +158,16 @@ int main(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
             }
         }
-        // when one is done using - empty space
+        // Zakończenie wątku dziecka (jeśli istnieje)
         if (hasChild) {
             pthread_join(thread, NULL);
-            sleep(1);
-            //  printf(BLUE "Child of %d ending." END "\n", msg.pid);
+            printf("Client PID=%d has left the pool with child.\n", getpid());
+        } else {
+            printf("Client PID=%d has left the pool.\n", getpid());
         }
-        sleep(1);                            // entered for 1sec
+        // sleep(1);                            // entered for 1sec
         pthread_mutex_lock(&shdata->mutex);  // locked
+        printf("locked.\n");
 
         switch (msg.poolId) {
             case OLIMPIC:

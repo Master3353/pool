@@ -67,7 +67,8 @@ int destroySharedMemory(int shmid);
 void initializeSharedData(SharedMemory* shdata);
 
 // functions for fifo
-int createFifo();
+void createFifo(const char* fifoName);
+void addPidToFifo(const char* fifoName, pid_t pid);
 int openFifoRead();
 int openFifoWrite();
 

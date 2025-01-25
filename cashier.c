@@ -10,7 +10,14 @@ static int closedPoolsCount = 0;  // track closed pools
 // funtion for writing to fifo
 void fifoWriteLine(int fd, const char *line) { write(fd, line, strlen(line)); }
 void handleAlarm(int sig) { time_up = 1; }
-
+void dummyRead(const char *fifoName) {
+    int fd = open(fifoName, O_RDONLY | O_NONBLOCK);
+    if (fd == -1) {
+        perror("Dummy read failed");
+        return;
+    }
+    close(fd);
+}
 int init_semaphore() {
     int semid = semget(SEM_KEY, SEM_COUNT, IPC_CREAT | 0600);
     if (semid == -1) {
@@ -33,17 +40,17 @@ int init_semaphore() {
     return semid;
 }
 
+void validateCounters(SharedMemory *shdata) {
+    if (shdata->olimpicCount < 0) shdata->olimpicCount = 0;
+    if (shdata->recreCount < 0) shdata->recreCount = 0;
+    if (shdata->childCount < 0) shdata->childCount = 0;
+}
 /*
     * Function for receiving messages from queue
     * prioritize clients with VIP status
     * mtype = 1 means VIP, mtype = 2 means normal client
 
 */
-void validateCounters(SharedMemory *shdata) {
-    if (shdata->olimpicCount < 0) shdata->olimpicCount = 0;
-    if (shdata->recreCount < 0) shdata->recreCount = 0;
-    if (shdata->childCount < 0) shdata->childCount = 0;
-}
 int receiveMessage(int msgid, msg_t *msg) {
     if (msgrcv(msgid, msg, sizeof(msg_t) - sizeof(long), 1, IPC_NOWAIT) != -1) {
         return 1;  // VIP
@@ -54,6 +61,13 @@ int receiveMessage(int msgid, msg_t *msg) {
     return 0;
 }
 int main(void) {
+    // create FIFOs for communication between lifeguards and clients
+    createFifo("fifo_olimpic");
+    createFifo("fifo_recre");
+    createFifo("fifo_child");
+    dummyRead("fifo_olimpic");
+    dummyRead("fifo_recre");
+    dummyRead("fifo_child");
     // if (createFifo() == -1) {
     //     fprintf(stderr, RED "[Cashier] Cannot create FIFO" END "\n");
     //     return 1;
@@ -92,10 +106,11 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
-    alarm(15);
+    alarm(30);
     // printf("Hello from cashier!\n");
 
     while (!time_up) {
+        // sleep(1);
         struct sembuf sb;
         sb.sem_num = 0;
         sb.sem_op = -1;  // P
@@ -182,7 +197,7 @@ int main(void) {
                     if (receivedMsg.hasChild) {
                         if (shdata->recreCount >= MAX_CAPACITY_RECRE - 1) {
                             can_enter = 0;
-                            strcpy(reason, "Recre is FULL.");
+                            strcpy(reason, "Recre is FULL for (2).");
                         }
                         // when we calculate avg for duo we need to do it
                         // togheter
