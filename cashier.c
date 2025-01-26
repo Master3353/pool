@@ -76,7 +76,7 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
-    alarm(30);
+    alarm(50);
     // printf("Hello from cashier!\n");
 
     while (!time_up) {

@@ -92,14 +92,7 @@ void initializeSharedData(SharedMemory* shdata) {
  *FIFO for keeping track of clients in specific pools
  *Will be needed for closing pools, so lifeguard can force clients to leave
  */
-void dummyRead(const char* fifoName) {
-    int fd = open(fifoName, O_RDONLY | O_NONBLOCK);
-    if (fd == -1) {
-        perror("Dummy read failed");
-        return;
-    }
-    // close(fd);
-}
+
 void createFifo(const char* fifoName) {
     if (mkfifo(fifoName, 0666) == -1 && errno != EEXIST) {
         perror("Error creating FIFO");

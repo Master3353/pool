@@ -20,9 +20,7 @@ int main() {
     createFifo("fifo_olimpic");
     createFifo("fifo_recre");
     createFifo("fifo_child");
-    dummyRead("fifo_olimpic");
-    dummyRead("fifo_recre");
-    dummyRead("fifo_child");
+
     pid_t cashierPid = fork();
     char cashierPidStr[20];
     snprintf(cashierPidStr, sizeof(cashierPidStr), "%d", cashierPid);
@@ -35,33 +33,33 @@ int main() {
         perror("Error with forking cashier");
         exit(EXIT_FAILURE);
     }
-    // pid_t childLifeguardPid = fork();
-    // if (childLifeguardPid == 0) {
-    //     execl("./lifeguard", "./lifeguard", "1", cashierPidStr, NULL);
-    //     perror("Error with execl a lifeguard 1");
-    //     exit(EXIT_FAILURE);
-    // } else if (childLifeguardPid < 0) {
-    //     perror("Error with forking lifeguard 1");
-    //     exit(EXIT_FAILURE);
-    // }
-    // pid_t recreLifeguardPid = fork();
-    // if (recreLifeguardPid == 0) {
-    //     execl("./lifeguard", "./lifeguard", "2", cashierPidStr, NULL);
-    //     perror("Error with execl a lifeguard 2");
-    //     exit(EXIT_FAILURE);
-    // } else if (recreLifeguardPid < 0) {
-    //     perror("Error with forking lifeguard 2");
-    //     exit(EXIT_FAILURE);
-    // }
-    // pid_t olimpicLifeguardPid = fork();
-    // if (olimpicLifeguardPid == 0) {
-    //     execl("./lifeguard", "./lifeguard", "3", cashierPidStr, NULL);
-    //     perror("Error with execl a lifeguard 3");
-    //     exit(EXIT_FAILURE);
-    // } else if (olimpicLifeguardPid < 0) {
-    //     perror("Error with forking lifeguard 3");
-    //     exit(EXIT_FAILURE);
-    // }
+    pid_t childLifeguardPid = fork();
+    if (childLifeguardPid == 0) {
+        execl("./lifeguard", "./lifeguard", "1", cashierPidStr, NULL);
+        perror("Error with execl a lifeguard 1");
+        exit(EXIT_FAILURE);
+    } else if (childLifeguardPid < 0) {
+        perror("Error with forking lifeguard 1");
+        exit(EXIT_FAILURE);
+    }
+    pid_t recreLifeguardPid = fork();
+    if (recreLifeguardPid == 0) {
+        execl("./lifeguard", "./lifeguard", "2", cashierPidStr, NULL);
+        perror("Error with execl a lifeguard 2");
+        exit(EXIT_FAILURE);
+    } else if (recreLifeguardPid < 0) {
+        perror("Error with forking lifeguard 2");
+        exit(EXIT_FAILURE);
+    }
+    pid_t olimpicLifeguardPid = fork();
+    if (olimpicLifeguardPid == 0) {
+        execl("./lifeguard", "./lifeguard", "3", cashierPidStr, NULL);
+        perror("Error with execl a lifeguard 3");
+        exit(EXIT_FAILURE);
+    } else if (olimpicLifeguardPid < 0) {
+        perror("Error with forking lifeguard 3");
+        exit(EXIT_FAILURE);
+    }
     // Making clients
     for (int i = 0; i < 10; i++) {
         pid_t clientPid = fork();
@@ -72,7 +70,7 @@ int main() {
         } else if (clientPid < 0) {
             perror("Error with forking client");
         }
-        usleep(1000000);
+        // usleep(1000000);
     }
     int status;
     pid_t wpid;

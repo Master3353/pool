@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
     sa_alarm.sa_handler = handleAlarm;
     sigemptyset(&sa_alarm.sa_mask);
     sa_alarm.sa_flags = 0;
-    alarm(15);
+    alarm(50);
     sigaction(SIGUSR2, &sa_open, NULL);
 
     int shmid = createSharedMemory();
@@ -67,6 +67,14 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "Lifeguard: Invalid pool ID\n");
             exit(EXIT_FAILURE);
     }
+
+    int fd = open(fifoName, O_RDONLY | O_NONBLOCK);
+    if (fd == -1) {
+        perror("Error reading FIFO");
+        return;
+    }
+    // ;
+
     // printf("Lifeguard: i have shmem! olimpicCount: %d\n",
     // shdata->olimpicCount);
     while (!time_up) {
@@ -80,24 +88,29 @@ int main(int argc, char* argv[]) {
             if (poolId == CHILD) shdata->isChildOpen = 0;
             pthread_mutex_unlock(&shdata->mutex);
 
-            // Odczytywanie PID-ów z FIFO i wysyłanie SIGTERM
-            int fd = open(fifoName, O_RDONLY);
-            if (fd == -1) {
-                perror("Lifeguard: Error opening FIFO");
-                continue;
-            }
-
             char buffer[32];
             while (read(fd, buffer, sizeof(buffer)) > 0) {
                 pid_t pid = atoi(buffer);
                 if (pid > 0) {
-                    printf("Lifeguard: Evicting client PID=%d\n", pid);
+                    printf("Lifeguard: Attempting to terminate PID=%d\n", pid);
                     if (kill(pid, SIGTERM) == -1) {
-                        perror("Lifeguard: Error sending SIGTERM");
+                        if (errno == ESRCH) {
+                            // printf(
+                            //     "Lifeguard: PID=%d does not exist,
+                            //     skipping\n",
+                            //    pid);
+                        } else {
+                            perror("Lifeguard: Error sending SIGTERM");
+                        }
+                    } else {
+                        printf(RED
+                               "Lifeguard: Successfully terminated PID=%d" END
+                               "\n ",
+                               pid);
                     }
                 }
             }
-            close(fd);
+            // close(fd);
 
             shouldClose = 0;  // Resetuj flagę
         }
@@ -121,6 +134,6 @@ int main(int argc, char* argv[]) {
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, "Lifeguard: problem with detach shmem.\n");
     }
-
+    close(fd);
     return 0;
 }

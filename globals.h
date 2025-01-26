@@ -29,9 +29,9 @@
 #define CHILD 3
 #define TIME_OPEN  // not sure yet how to implement this
 #define TIME_CLOSED
-#define MAX_CAPACITY_OLIMPIC 1
-#define MAX_CAPACITY_RECRE 2
-#define MAX_CAPACITY_CHILD 2
+#define MAX_CAPACITY_OLIMPIC 10
+#define MAX_CAPACITY_RECRE 20
+#define MAX_CAPACITY_CHILD 20
 // 1 - olimpic, 2 - recre, 3 - child
 
 // define colors for better output
@@ -70,7 +70,6 @@ void initializeSharedData(SharedMemory* shdata);
 // functions for fifo
 void createFifo(const char* fifoName);
 void addPidToFifo(const char* fifoName, pid_t pid, int fifoSemid);
-void dummmyRead(const char* fifoName);
 int initFifoSemaphore();
 void fifoSemaphoreUnlock(int semid);
 void fifoSemaphoreLock(int semid);

@@ -6,7 +6,7 @@ typedef struct {
     int hasPampers;
     int targetPool;
 } Child;
-// random age generator
+// random number generator
 int randRange(int min, int max) { return min + rand() % (max - min + 1); }
 void* childThread(void* arg) {
     Child* child = (Child*)arg;
@@ -28,49 +28,10 @@ void* childThread(void* arg) {
 
     pthread_exit(NULL);
 }
-void removePidFromFifo(const char* fifoName, pid_t pid) {
-    FILE* fifo = fopen(fifoName, "r");
-    if (!fifo) {
-        perror("Error opening FIFO for reading");
-        return;
-    }
-
-    // Tymczasowa lista PID-ów
-    pid_t pids[1024];
-    int count = 0;
-
-    // Wczytaj PID-y z FIFO do listy
-    while (fscanf(fifo, "%d", &pids[count]) == 1) {
-        if (pids[count] != pid) {  // Pomijamy PID do usunięcia
-            count++;
-        }
-    }
-    fclose(fifo);  // Zamknij FIFO po odczycie
-
-    // Otwórz FIFO w trybie do zapisu (zablokuje, jeśli nikt nie czyta)
-    int fd = open(fifoName, O_WRONLY | O_NONBLOCK);
-    if (fd == -1) {
-        perror("Error opening FIFO for writing");
-        return;
-    }
-
-    // Przepisz wszystkie PID-y z powrotem do FIFO
-    FILE* fifoWrite = fdopen(fd, "w");
-    if (!fifoWrite) {
-        perror("Error converting FIFO descriptor to FILE*");
-        close(fd);
-        return;
-    }
-
-    for (int i = 0; i < count; i++) {
-        fprintf(fifoWrite, "%d\n", pids[i]);
-    }
-    fclose(fifoWrite);  // Zamknij FIFO po zapisie
-}
 
 int getFifoSemaphore() {
     int semid =
-        semget(FIFO_SEM_KEY, 1, 0666);  // Dołącz do istniejącego semafora
+        semget(FIFO_SEM_KEY, 1, 0600);  // Dołącz do istniejącego semafora
     if (semid == -1) {
         perror("Error accessing semaphore");
         exit(EXIT_FAILURE);
@@ -207,7 +168,8 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // sleep(1);                            // entered for 1sec
+        sleep(15);  // entered for 1sec
+
         pthread_mutex_lock(&shdata->mutex);  // locked
         // printf("locked.\n");
 
@@ -235,8 +197,6 @@ int main(int argc, char* argv[]) {
                 break;
         }
         pthread_mutex_unlock(&shdata->mutex);  // unlock
-        // removePidFromFifo(fifoName, getpid());
-        // printf(RED "HERE\n" END "\n");
 
         // Zakończenie wątku dziecka (jeśli istnieje)
         if (hasChild) {
