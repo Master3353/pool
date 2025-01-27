@@ -9,28 +9,6 @@ static int closedPoolsCount = 0;  // track closed pools
 
 void handleAlarm(int sig) { time_up = 1; }
 
-int init_semaphore() {
-    int semid = semget(SEM_KEY, SEM_COUNT, IPC_CREAT | 0600);
-    if (semid == -1) {
-        perror("Cashier: semget error");
-        exit(EXIT_FAILURE);
-    }
-
-    union semun {
-        int val;
-        struct semid_ds *buf;
-        unsigned short *array;
-    } arg;
-
-    arg.val = 1;
-    if (semctl(semid, 0, SETVAL, arg) == -1) {
-        perror("Cashier: semctl error");
-        exit(EXIT_FAILURE);
-    }
-
-    return semid;
-}
-
 void validateCounters(SharedMemory *shdata) {
     if (shdata->olimpicCount < 0) shdata->olimpicCount = 0;
     if (shdata->recreCount < 0) shdata->recreCount = 0;
@@ -52,9 +30,9 @@ int receiveMessage(int msgid, msg_t *msg) {
     return 0;
 }
 int main(void) {
-    int fifoSemid = initFifoSemaphore();
+    // int fifoSemid = initFifoSemaphore();
     int msgid = create_message_queue();
-    int semid = init_semaphore();
+    int semid = initSemaphore();
     int shmid = createSharedMemory();
     if (shmid == -1) {
         fprintf(stderr, RED "Cashier: Probelm with getting shmem." END "\n");
@@ -76,11 +54,10 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
-    alarm(50);
+    alarm(10);
     // printf("Hello from cashier!\n");
 
     while (!time_up) {
-        // sleep(1);
         struct sembuf sb;
         sb.sem_num = 0;
         sb.sem_op = -1;  // P
@@ -95,14 +72,13 @@ int main(void) {
             printf("VIP Client received: PID=%d\n", receivedMsg.pid);
         } else if (msgType == 2) {
             printf("Regular Client received: PID=%d\n", receivedMsg.pid);
-        } else {
-            // printf("No client message received.\n");
-        }
-        if (msgType == 0) {
+        } else if (msgType == 0) {
+            // sleep(1);       // Dodaj opóźnienie
             sb.sem_op = 1;  // unlock sem
             if (semop(semid, &sb, 1) == -1) {
                 perror("Cashier: semop V");
             }
+
             continue;
         }
         printf(BLUE
@@ -122,7 +98,7 @@ int main(void) {
                     can_enter = 0;
                     strcpy(reason, "Building closed - water change.");
                 }
-                if (shdata->isChildOpen == 0) {
+                if (shdata->isOlimpicOpen == 0) {
                     can_enter = 0;
                     strcpy(reason, "Olimpic closed - can't enter.");
                 }
@@ -131,7 +107,7 @@ int main(void) {
                     strcpy(reason,
                            "Only adults on Olimpic.");  // probably won't happen
                     // in randomization i dont think age <18 and Olimpic can be
-                    // together
+                    // together, but just to make sure
                 }
                 if (shdata->olimpicCount >= MAX_CAPACITY_OLIMPIC) {
                     can_enter = 0;
@@ -278,14 +254,20 @@ int main(void) {
         response_msg.text[MSG_SIZE - 1] = '\0';
         validateCounters(shdata);
         // send response
+        printf("Leci: %d\n", sizeof(msg_t) - sizeof(long));
         if (msgsnd(msgid, &response_msg, sizeof(msg_t) - sizeof(long), 0) ==
             -1) {
             perror("Cashier: msgsnd answear");
             continue;
         } else {
+            // printf(RED "HERE1." END "\n");
+
             printf(GREEN "Response sent to client PID=%d." END "\n",
                    response_msg.mtype);
         }
+
+        //
+        printf(RED "HERE2." END "\n");
 
         if (!can_enter) {
             printf(YELLOW "Cashier: Refused: %s" END "\n", response_msg.text);
@@ -296,17 +278,13 @@ int main(void) {
             perror("Cashier: semop V");
             continue;
         }
+        sleep(1);
     }
     printf("Cashier: Ending.\n");
     if (msgctl(msgid, IPC_RMID, NULL) == -1) {
         perror("Cashier: msgctl IPC_RMID");
     }
-    if (semctl(fifoSemid, 0, IPC_RMID) == -1) {
-        perror("Error removing semaphore");
-    }
-    if (semctl(semid, 0, IPC_RMID) == -1) {
-        perror("Cashier: semctl IPC_RMID");
-    }
+
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, RED "Cashier: problem with detach shmem." END "\n");
     }

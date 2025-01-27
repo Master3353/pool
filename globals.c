@@ -94,7 +94,7 @@ void initializeSharedData(SharedMemory* shdata) {
  */
 
 void createFifo(const char* fifoName) {
-    if (mkfifo(fifoName, 0666) == -1 && errno != EEXIST) {
+    if (mkfifo(fifoName, 0600) == -1 && errno != EEXIST) {
         perror("Error creating FIFO");
         exit(EXIT_FAILURE);
     } else {
@@ -102,7 +102,7 @@ void createFifo(const char* fifoName) {
     }
 }
 int initFifoSemaphore() {
-    int semid = semget(FIFO_SEM_KEY, 1, IPC_CREAT | 0666);  // 1 semafor
+    int semid = semget(FIFO_SEM_KEY, 1, IPC_CREAT | 0600);  // 1 semafor
     if (semid == -1) {
         perror("Error creating semaphore");
         exit(EXIT_FAILURE);
@@ -116,20 +116,49 @@ int initFifoSemaphore() {
 
     return semid;
 }
+int initSemaphore() {
+    int semid = semget(SEM_KEY, SEM_COUNT, IPC_CREAT | 0600);
+    if (semid == -1) {
+        perror("Cashier: semget error");
+        exit(EXIT_FAILURE);
+    }
+
+    union semun {
+        int val;
+        struct semid_ds* buf;
+        unsigned short* array;
+    } arg;
+
+    arg.val = 1;
+    if (semctl(semid, 0, SETVAL, arg) == -1) {
+        perror("Cashier: semctl error");
+        exit(EXIT_FAILURE);
+    }
+
+    return semid;
+}
 void fifoSemaphoreLock(int semid) {
     struct sembuf sb = {0, -1, 0};  // Opis operacji P (zmniejszenie o 1)
-    if (semop(semid, &sb, 1) == -1) {
-        perror("Error locking semaphore");
-        exit(EXIT_FAILURE);
+    while (semop(semid, &sb, 1) == -1) {
+        if (errno == EINTR) {
+            continue;
+        } else {
+            perror("Error locking semaphore");
+            exit(EXIT_FAILURE);
+        }
     }
 }
 
 // Funkcja odblokowująca semafor
 void fifoSemaphoreUnlock(int semid) {
     struct sembuf sb = {0, 1, 0};  // Opis operacji V (zwiększenie o 1)
-    if (semop(semid, &sb, 1) == -1) {
-        perror("Error unlocking semaphore");
-        exit(EXIT_FAILURE);
+    while (semop(semid, &sb, 1) == -1) {
+        if (errno == EINTR) {
+            continue;
+        } else {
+            perror("Error unlocking semaphore");
+            exit(EXIT_FAILURE);
+        }
     }
 }
 

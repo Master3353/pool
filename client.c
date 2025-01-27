@@ -1,6 +1,14 @@
 #include "globals.h"
 #include "msg_struct.h"
 
+volatile sig_atomic_t shouldExit = 0;  // flag for SIGTERM
+
+void sigtermHandler(int sig) {
+    if (sig == SIGTERM) {
+        shouldExit = 1;  // Ustaw flagę zakończenia
+    }
+}
+
 typedef struct {
     int childAge;
     int hasPampers;
@@ -40,10 +48,19 @@ int getFifoSemaphore() {
 }
 int main(int argc, char* argv[]) {
     srand(time(NULL) ^ getpid());
+
     if (argc < 1) {
         fprintf(stderr, RED "Wrong arguments: %s" END "\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+    // signal handler for emergency evacuation
+    struct sigaction sa;
+    sa.sa_handler = sigtermHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGTERM, &sa, NULL);
+
     int hasChild = randRange(0, 1);  // 0 - no child, 1 - child
     msg_t msg;
     Child child;
@@ -51,10 +68,9 @@ int main(int argc, char* argv[]) {
     if (hasChild) {
         child.childAge = randRange(1, 9);
         child.hasPampers = (child.childAge < 3) ? 1 : 0;
-        child.targetPool =
-            (child.childAge < 5)
-                ? CHILD
-                : RECRE;  // 5 and younger to CHILD, older to recre
+        child.targetPool = (child.childAge < 5)
+                               ? 3
+                               : 2;  // 5 and younger to CHILD, older to recre
     }
     int poolId;
     int adultAge;
@@ -62,18 +78,16 @@ int main(int argc, char* argv[]) {
         adultAge = randRange(18, 70);
         msg.childAge = child.childAge;
         if (child.childAge < 5) {
-            poolId = CHILD;  // needs to be with child
-            msg.childPoolId = CHILD;
+            poolId = 3;  // needs to be with child
+            msg.childPoolId = 3;
         } else {
-            poolId =
-                randRange(OLIMPIC, RECRE);  // adult can go to olimpic/recre
+            poolId = randRange(1, 2);  // adult can go to olimpic/recre
         }
     } else {
         adultAge = randRange(10, 70);
         msg.childPoolId = RECRE;
         if (adultAge >= 18) {
-            poolId =
-                randRange(OLIMPIC, RECRE);  // adult can go to olimpic/recre
+            poolId = randRange(1, 2);  // adult can go to olimpic/recre
         } else {
             poolId = RECRE;  // teen needs to be in recre pool
         }
@@ -167,8 +181,18 @@ int main(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
             }
         }
-
-        sleep(15);  // entered for 1sec
+        int sleepTime = 3;  // time in pool
+        for (int i = 0; i < sleepTime; i++) {
+            if (shouldExit) {
+                printf(
+                    RED
+                    "Client (%d): Received SIGTERM. Leaving pool early.\n" END,
+                    getpid());
+                break;
+            }
+            sleep(1);
+        }
+        // sleep(20);  // entered for x sec
 
         pthread_mutex_lock(&shdata->mutex);  // locked
         // printf("locked.\n");

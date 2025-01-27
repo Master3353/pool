@@ -16,6 +16,8 @@ int main() {
         exit(EXIT_FAILURE);
     }
     int fifoSemid = initFifoSemaphore();
+    int semid = initSemaphore();
+
     // create FIFOs for communication between lifeguards and clients
     createFifo("fifo_olimpic");
     createFifo("fifo_recre");
@@ -44,7 +46,7 @@ int main() {
     }
     pid_t recreLifeguardPid = fork();
     if (recreLifeguardPid == 0) {
-        execl("./lifeguard", "./lifeguard", "2", cashierPidStr, NULL);
+        execl("./lifeguard", "./lifeguard", "2", NULL);
         perror("Error with execl a lifeguard 2");
         exit(EXIT_FAILURE);
     } else if (recreLifeguardPid < 0) {
@@ -70,7 +72,7 @@ int main() {
         } else if (clientPid < 0) {
             perror("Error with forking client");
         }
-        // usleep(1000000);
+        sleep(1);
     }
     int status;
     pid_t wpid;
@@ -87,6 +89,12 @@ int main() {
     }
 
     printf("All children have ended. Ending program\n");
+    if (semctl(fifoSemid, 0, IPC_RMID) == -1) {
+        perror("Error removing semaphore");
+    }
+    if (semctl(semid, 0, IPC_RMID) == -1) {
+        perror("Cashier: semctl IPC_RMID");
+    }
     if (detachSharedMemory(shdata) == -1) {
         fprintf(stderr, "Pool: problem with detach shmem.\n");
     }
