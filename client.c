@@ -176,7 +176,7 @@ int main(int argc, char* argv[]) {
                     getpid());
                 break;
             }
-            sleep(1);
+            // sleep(1);
         }
         // sleep(20);  // entered for x sec
 

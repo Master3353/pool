@@ -46,7 +46,7 @@ void* fifoReaderThread(void* arg) {
                 enqueuePid(pid);
             }
         }
-        usleep(100000);  // wait 100ms so cpu won't explode
+        // usleep(100000);  // wait 100ms so cpu won't explode
     }
 
     close(fd);
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]) {
     }
 
     while (!time_up) {
-        sleep(1);  // wait 1 sec so cpu won't explode
+        // sleep(1);  // wait 1 sec so cpu won't explode
         if (shouldClose) {
             printf("Lifeguard: Closing pool %d\n", poolId);
 

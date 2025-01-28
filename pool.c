@@ -1,5 +1,11 @@
 #include "globals.h"
 pid_t lifeguardPids[3];
+void sigchldHandler(int sig) {
+    (void)sig;  // Uniknięcie ostrzeżenia o nieużywaniu zmiennej
+    while (waitpid(-1, NULL, WNOHANG) > 0) {
+        // Usuwanie zakończonych procesów dzieci
+    }
+}
 
 void sendSignalToLifeguards(int signal) {
     for (int i = 0; i < 4; i++) {
@@ -12,7 +18,15 @@ void sendSignalToLifeguards(int signal) {
 int main() {
     checkInput();
     printf("Just checking \n");
+    struct sigaction sa;
+    sa.sa_handler = sigchldHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
 
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("Error setting SIGCHLD handler");
+        exit(EXIT_FAILURE);
+    }
     int shmid = createSharedMemory();
     if (shmid == -1) {
         fprintf(stderr, "Pool: Probelm with getting shmem.\n");

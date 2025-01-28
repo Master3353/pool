@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
         } else if (msgType == 2) {
             printf("Regular Client received: PID=%d\n", receivedMsg.pid);
         } else if (msgType == 0) {
-            sleep(1);       // add intervals so cpu won't explode
+            // sleep(1);       // add intervals so cpu won't explode
             sb.sem_op = 1;  // unlock sem
             if (semop(semid, &sb, 1) == -1) {
                 perror("Cashier: semop V");
@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
             perror("Cashier: semop V");
             continue;
         }
-        sleep(1);
+        // sleep(1);
     }
     printf("Cashier: Ending.\n");
     if (msgctl(msgid, IPC_RMID, NULL) == -1) {
