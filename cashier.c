@@ -1,11 +1,8 @@
 
 
-#include <signal.h>
-
 #include "globals.h"
 #include "msg_struct.h"
 volatile sig_atomic_t time_up = 0;
-static int closedPoolsCount = 0;  // track closed pools
 
 void handleAlarm(int sig) { time_up = 1; }
 
@@ -76,7 +73,7 @@ int main(int argc, char *argv[]) {
         } else if (msgType == 2) {
             printf("Regular Client received: PID=%d\n", receivedMsg.pid);
         } else if (msgType == 0) {
-            sleep(1);       // Dodaj opóźnienie
+            sleep(1);       // add intervals so cpu won't explode
             sb.sem_op = 1;  // unlock sem
             if (semop(semid, &sb, 1) == -1) {
                 perror("Cashier: semop V");
@@ -263,14 +260,9 @@ int main(int argc, char *argv[]) {
             perror("Cashier: msgsnd answear");
             continue;
         } else {
-            // printf(RED "HERE1." END "\n");
-
             printf(GREEN "Response sent to client PID=%d." END "\n",
                    response_msg.mtype);
         }
-
-        //
-        // printf(RED "HERE2." END "\n");
 
         if (!can_enter) {
             printf(YELLOW "Cashier: Refused: %s" END "\n", response_msg.text);

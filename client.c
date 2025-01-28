@@ -28,23 +28,12 @@ void* childThread(void* arg) {
         fprintf(stderr, RED "Thread: error attachSharedMemory." END "\n");
         pthread_exit(NULL);
     }
-    // test
-    // sleep(5);
 
     detachSharedMemory(shdata);
 
     pthread_exit(NULL);
 }
 
-int getFifoSemaphore() {
-    int semid =
-        semget(FIFO_SEM_KEY, 1, 0600);  // Dołącz do istniejącego semafora
-    if (semid == -1) {
-        perror("Error accessing semaphore");
-        exit(EXIT_FAILURE);
-    }
-    return semid;
-}
 int main(int argc, char* argv[]) {
     srand(time(NULL) ^ getpid());
 
@@ -119,7 +108,8 @@ int main(int argc, char* argv[]) {
         msg.hasPampers = child.hasPampers;
     } else {
         msg.childAge = 0;
-        msg.childPoolId = -1;  // cashier knows, that its solo adult
+        msg.childPoolId = -1;  // -1, because there is no child - doesnt matter
+                               // if its -1 or something else
         msg.hasPampers = 0;
     }
     msg.status = 0;  // cashier will input this
@@ -129,15 +119,12 @@ int main(int argc, char* argv[]) {
         perror("Client: msgsnd request");
         exit(EXIT_FAILURE);
     }
-    // printf("Client (parent): Sent request to cashier.\n");
 
     msg_t response;
     if (msgrcv(msgid, &response, sizeof(msg_t) - sizeof(long), getpid(), 0) ==
         -1) {
         perror("Client: msgrcv response");
         exit(EXIT_FAILURE);
-    } else {
-        // printf("received\n");
     }
 
     if (response.status != 1) {
@@ -221,7 +208,7 @@ int main(int argc, char* argv[]) {
         }
         pthread_mutex_unlock(&shdata->mutex);  // unlock
 
-        // Zakończenie wątku dziecka (jeśli istnieje)
+        // end child thread
         if (hasChild) {
             pthread_join(thread, NULL);
             printf(BLUE "Im %d leaving the pool with child \n" END "\n",

@@ -18,7 +18,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#define LIFEGUARD_FIFO "/tmp/lifeguard_fifo"
 #define SHM_KEY 0x1234
 #define SEM_KEY 0x5678
 #define FIFO_SEM_KEY 0x5000
@@ -27,8 +26,7 @@
 #define OLIMPIC 1
 #define RECRE 2
 #define CHILD 3
-#define TIME_OPEN  // not sure yet how to implement this
-#define TIME_CLOSED
+
 #define MAX_CAPACITY_OLIMPIC 10
 #define MAX_CAPACITY_RECRE 20
 #define MAX_CAPACITY_CHILD 20
@@ -74,6 +72,7 @@ int initSemaphore();
 void createFifo(const char* fifoName);
 void addPidToFifo(const char* fifoName, pid_t pid, int fifoSemid);
 int initFifoSemaphore();
+int getFifoSemaphore();
 void fifoSemaphoreUnlock(int semid);
 void fifoSemaphoreLock(int semid);
 

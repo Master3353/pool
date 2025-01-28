@@ -162,7 +162,14 @@ void fifoSemaphoreUnlock(int semid) {
         }
     }
 }
-
+int getFifoSemaphore() {
+    int semid = semget(FIFO_SEM_KEY, 1, 0600);
+    if (semid == -1) {
+        perror("Error accessing semaphore");
+        exit(EXIT_FAILURE);
+    }
+    return semid;
+}
 void addPidToFifo(const char* fifoName, pid_t pid, int fifoSemid) {
     fifoSemaphoreLock(fifoSemid);
     int fd = open(fifoName, O_WRONLY | O_NONBLOCK);
@@ -184,7 +191,7 @@ void addPidToFifo(const char* fifoName, pid_t pid, int fifoSemid) {
 
     fifoSemaphoreUnlock(fifoSemid);
 }
-
+// validate pools capacity
 void checkInput() {
     if (MAX_CAPACITY_CHILD < 2) {
         fprintf(stderr, "Child pool needs to have at least 2 spots.\n");

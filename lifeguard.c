@@ -17,7 +17,7 @@ void enqueuePid(pid_t pid) {
     pthread_mutex_unlock(&fifoMutex);
 }
 
-// Pobierz PID z kolejki
+// get pid from queue
 pid_t dequeuePid() {
     pthread_mutex_lock(&fifoMutex);
     while (queueStart == queueEnd) {
@@ -46,7 +46,7 @@ void* fifoReaderThread(void* arg) {
                 enqueuePid(pid);
             }
         }
-        usleep(100000);  // Opóźnienie 100 ms
+        usleep(100000);  // wait 100ms so cpu won't explode
     }
 
     close(fd);
@@ -123,17 +123,9 @@ int main(int argc, char* argv[]) {
         perror("Lifeguard: Error creating FIFO reader thread");
         exit(EXIT_FAILURE);
     }
-    // int fd = open(fifoName, O_RDONLY | O_NONBLOCK);
-    // if (fd == -1) {
-    //     perror("Error reading FIFO");
-    //     return;
-    // }
-    // ;
 
-    // printf("Lifeguard: i have shmem! olimpicCount: %d\n",
-    // shdata->olimpicCount);
     while (!time_up) {
-        sleep(1);  // Uniknięcie obciążenia CPU
+        sleep(1);  // wait 1 sec so cpu won't explode
         if (shouldClose) {
             printf("Lifeguard: Closing pool %d\n", poolId);
 
@@ -146,36 +138,33 @@ int main(int argc, char* argv[]) {
 
             while (queueStart != queueEnd) {
                 pid_t pid = dequeuePid();
-                // printf("Lifeguard: Attempting to terminate PID=%d\n", pid);
+                // attempting to terminate clients - when PID doesn;t exists
+                // omit it
                 if (kill(pid, SIGTERM) == -1) {
                     if (errno == ESRCH) {
                         printf("Lifeguard: PID=%d does not exist.\n", pid);
                     } else {
                         perror("Lifeguard: Error sending SIGTERM");
                     }
-                } else {
-                    // printf("Lifeguard: Successfully terminated PID=%d\n",
-                    // pid);
                 }
             }
 
             printf(RED "Ended terminating" END "\n ");
-            // close(fd);
 
-            shouldClose = 0;  // Resetuj flagę
+            shouldClose = 0;  // reset flag
         }
 
         if (shouldOpen) {
             printf("Lifeguard: Opening pool %d\n", poolId);
 
-            // Otwarcie basenu
+            // open pool
             pthread_mutex_lock(&shdata->mutex);
             if (poolId == OLIMPIC) shdata->isOlimpicOpen = 1;
             if (poolId == RECRE) shdata->isRecreOpen = 1;
             if (poolId == CHILD) shdata->isChildOpen = 1;
             pthread_mutex_unlock(&shdata->mutex);
 
-            shouldOpen = 0;  // Resetuj flagę
+            shouldOpen = 0;  // reset flag
         }
     }
 

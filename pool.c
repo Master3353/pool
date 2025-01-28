@@ -4,7 +4,7 @@ pid_t lifeguardPids[3];
 void sendSignalToLifeguards(int signal) {
     for (int i = 0; i < 4; i++) {
         if (lifeguardPids[i] > 0) {
-            kill(lifeguardPids[i], signal);  // Wyślij sygnał do ratownika
+            kill(lifeguardPids[i], signal);  // send signal to lifeguard
         }
     }
 }
@@ -72,28 +72,29 @@ int main() {
     }
 
     int randomTime = randRange(0, 2);
-    sleep(randomTime);  // Czekaj na losowy moment
+    sleep(randomTime);  // wait random ammount of time to change water
     printf(RED "Pool: Closing facility for water change." END "\n");
 
     pthread_mutex_lock(&shdata->mutex);
-    shdata->isFacilityClosed = 1;  // Ustaw zamknięcie obiektu
+    shdata->isFacilityClosed = 1;  // close object
     pthread_mutex_unlock(&shdata->mutex);
 
-    sendSignalToLifeguards(SIGUSR1);  // Wyślij sygnał do wszystkich
+    sendSignalToLifeguards(SIGUSR1);  // send signal to ligeguards
 
     // simulation water change
     sleep(5);
     printf(RED "Pool: Reopening facility after water change." END "\n");
 
     pthread_mutex_lock(&shdata->mutex);
-    shdata->isFacilityClosed = 0;  // Otwórz obiekt po wymianie wody
+    shdata->isFacilityClosed = 0;  // open after change
     pthread_mutex_unlock(&shdata->mutex);
 
     sendSignalToLifeguards(
-        SIGUSR2);  // Wyślij sygnał otwarcia do wszystkich ratowników
+        SIGUSR2);  // send that lifeguards can open pools again
 
     int status;
     pid_t wpid;
+    // waiting for all programs to end before cleanup
     while ((wpid = wait(&status)) > 0) {
         if (WIFEXITED(status)) {
             // printf("Child with PID %d exited with status %d.\n", wpid,
@@ -107,6 +108,8 @@ int main() {
     }
 
     printf("All children have ended. Ending program\n");
+
+    // cleaning system structures
     if (semctl(fifoSemid, 0, IPC_RMID) == -1) {
         perror("Error removing semaphore");
     }
