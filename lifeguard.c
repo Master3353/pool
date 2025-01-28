@@ -66,11 +66,12 @@ void sigusr2Handler(int sig) {
 void handleAlarm(int sig) { time_up = 1; }
 int main(int argc, char* argv[]) {
     // takes on which pool he is staying and cashier pid for comunication
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <poolId> \n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <poolId> <oppeningTime>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     int poolId = atoi(argv[1]);
+    int oppeningTime = atoi(argv[2]);
 
     struct sigaction sa_close, sa_open, sa_alarm;
     sa_close.sa_handler = sigusr1Handler;
@@ -81,12 +82,12 @@ int main(int argc, char* argv[]) {
     sa_open.sa_handler = sigusr2Handler;
     sigemptyset(&sa_open.sa_mask);
     sa_open.sa_flags = 0;
+    sigaction(SIGUSR2, &sa_open, NULL);
 
     sa_alarm.sa_handler = handleAlarm;
     sigemptyset(&sa_alarm.sa_mask);
     sa_alarm.sa_flags = 0;
-    alarm(10);
-    sigaction(SIGUSR2, &sa_open, NULL);
+    alarm(oppeningTime);
 
     int shmid = createSharedMemory();
     if (shmid == -1) {
@@ -145,7 +146,7 @@ int main(int argc, char* argv[]) {
 
             while (queueStart != queueEnd) {
                 pid_t pid = dequeuePid();
-                printf("Lifeguard: Attempting to terminate PID=%d\n", pid);
+                // printf("Lifeguard: Attempting to terminate PID=%d\n", pid);
                 if (kill(pid, SIGTERM) == -1) {
                     if (errno == ESRCH) {
                         printf("Lifeguard: PID=%d does not exist.\n", pid);
@@ -153,7 +154,8 @@ int main(int argc, char* argv[]) {
                         perror("Lifeguard: Error sending SIGTERM");
                     }
                 } else {
-                    printf("Lifeguard: Successfully terminated PID=%d\n", pid);
+                    // printf("Lifeguard: Successfully terminated PID=%d\n",
+                    // pid);
                 }
             }
 

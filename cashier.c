@@ -29,8 +29,12 @@ int receiveMessage(int msgid, msg_t *msg) {
     }
     return 0;
 }
-int main(void) {
-    // int fifoSemid = initFifoSemaphore();
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <oppeningTime>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    int oppeningTime = atoi(argv[1]);
     int msgid = create_message_queue();
     int semid = initSemaphore();
     int shmid = createSharedMemory();
@@ -54,8 +58,7 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
-    alarm(10);
-    // printf("Hello from cashier!\n");
+    alarm(oppeningTime);
 
     while (!time_up) {
         struct sembuf sb;
@@ -73,7 +76,7 @@ int main(void) {
         } else if (msgType == 2) {
             printf("Regular Client received: PID=%d\n", receivedMsg.pid);
         } else if (msgType == 0) {
-            // sleep(1);       // Dodaj opóźnienie
+            sleep(1);       // Dodaj opóźnienie
             sb.sem_op = 1;  // unlock sem
             if (semop(semid, &sb, 1) == -1) {
                 perror("Cashier: semop V");
@@ -254,7 +257,7 @@ int main(void) {
         response_msg.text[MSG_SIZE - 1] = '\0';
         validateCounters(shdata);
         // send response
-        printf("Leci: %d\n", sizeof(msg_t) - sizeof(long));
+
         if (msgsnd(msgid, &response_msg, sizeof(msg_t) - sizeof(long), 0) ==
             -1) {
             perror("Cashier: msgsnd answear");
@@ -267,7 +270,7 @@ int main(void) {
         }
 
         //
-        printf(RED "HERE2." END "\n");
+        // printf(RED "HERE2." END "\n");
 
         if (!can_enter) {
             printf(YELLOW "Cashier: Refused: %s" END "\n", response_msg.text);

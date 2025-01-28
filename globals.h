@@ -59,6 +59,8 @@ typedef struct {
     int isFacilityClosed;  // 0 - open, 1 - closed
 } SharedMemory;
 
+int randRange(int min, int max);
+
 // functions for shared mem
 int createSharedMemory();
 int getSharedMemory();

@@ -15,7 +15,6 @@ typedef struct {
     int targetPool;
 } Child;
 // random number generator
-int randRange(int min, int max) { return min + rand() % (max - min + 1); }
 void* childThread(void* arg) {
     Child* child = (Child*)arg;
 
@@ -157,13 +156,13 @@ int main(int argc, char* argv[]) {
         //
         const char* fifoName = NULL;
         switch (msg.poolId) {
-            case OLIMPIC:
+            case 1:
                 fifoName = "./fifo_olimpic";
                 break;
-            case RECRE:
+            case 2:
                 fifoName = "./fifo_recre";
                 break;
-            case CHILD:
+            case 3:
                 fifoName = "./fifo_child";
                 break;
             default:

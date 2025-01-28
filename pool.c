@@ -1,4 +1,13 @@
 #include "globals.h"
+pid_t lifeguardPids[3];
+
+void sendSignalToLifeguards(int signal) {
+    for (int i = 0; i < 4; i++) {
+        if (lifeguardPids[i] > 0) {
+            kill(lifeguardPids[i], signal);  // Wyślij sygnał do ratownika
+        }
+    }
+}
 
 int main() {
     checkInput();
@@ -23,44 +32,31 @@ int main() {
     createFifo("fifo_recre");
     createFifo("fifo_child");
 
+    char oppeningTime[20];
+    snprintf(oppeningTime, sizeof(oppeningTime), "%s", "15");
     pid_t cashierPid = fork();
-    char cashierPidStr[20];
-    snprintf(cashierPidStr, sizeof(cashierPidStr), "%d", cashierPid);
 
     if (cashierPid == 0) {
-        execl("./cashier", "./cashier", NULL);
+        execl("./cashier", "./cashier", oppeningTime, NULL);
         perror("Error with execl cashier");
         exit(EXIT_FAILURE);
     } else if (cashierPid < 0) {
         perror("Error with forking cashier");
         exit(EXIT_FAILURE);
     }
-    pid_t childLifeguardPid = fork();
-    if (childLifeguardPid == 0) {
-        execl("./lifeguard", "./lifeguard", "1", cashierPidStr, NULL);
-        perror("Error with execl a lifeguard 1");
-        exit(EXIT_FAILURE);
-    } else if (childLifeguardPid < 0) {
-        perror("Error with forking lifeguard 1");
-        exit(EXIT_FAILURE);
-    }
-    pid_t recreLifeguardPid = fork();
-    if (recreLifeguardPid == 0) {
-        execl("./lifeguard", "./lifeguard", "2", NULL);
-        perror("Error with execl a lifeguard 2");
-        exit(EXIT_FAILURE);
-    } else if (recreLifeguardPid < 0) {
-        perror("Error with forking lifeguard 2");
-        exit(EXIT_FAILURE);
-    }
-    pid_t olimpicLifeguardPid = fork();
-    if (olimpicLifeguardPid == 0) {
-        execl("./lifeguard", "./lifeguard", "3", cashierPidStr, NULL);
-        perror("Error with execl a lifeguard 3");
-        exit(EXIT_FAILURE);
-    } else if (olimpicLifeguardPid < 0) {
-        perror("Error with forking lifeguard 3");
-        exit(EXIT_FAILURE);
+
+    for (int i = 1; i <= 3; i++) {
+        lifeguardPids[i] = fork();
+        if (lifeguardPids[i] == 0) {
+            char poolIdStr[10];
+            snprintf(poolIdStr, sizeof(poolIdStr), "%d", i);
+            execl("./lifeguard", "./lifeguard", poolIdStr, oppeningTime, NULL);
+            perror("Error with execl lifeguard");
+            exit(EXIT_FAILURE);
+        } else if (lifeguardPids[i] < 0) {
+            perror("Error with forking lifeguard");
+            exit(EXIT_FAILURE);
+        }
     }
     // Making clients
     for (int i = 0; i < 10; i++) {
@@ -72,8 +68,30 @@ int main() {
         } else if (clientPid < 0) {
             perror("Error with forking client");
         }
-        sleep(1);
+        // sleep(1);
     }
+
+    int randomTime = randRange(0, 2);
+    sleep(randomTime);  // Czekaj na losowy moment
+    printf(RED "Pool: Closing facility for water change." END "\n");
+
+    pthread_mutex_lock(&shdata->mutex);
+    shdata->isFacilityClosed = 1;  // Ustaw zamknięcie obiektu
+    pthread_mutex_unlock(&shdata->mutex);
+
+    sendSignalToLifeguards(SIGUSR1);  // Wyślij sygnał do wszystkich
+
+    // simulation water change
+    sleep(5);
+    printf(RED "Pool: Reopening facility after water change." END "\n");
+
+    pthread_mutex_lock(&shdata->mutex);
+    shdata->isFacilityClosed = 0;  // Otwórz obiekt po wymianie wody
+    pthread_mutex_unlock(&shdata->mutex);
+
+    sendSignalToLifeguards(
+        SIGUSR2);  // Wyślij sygnał otwarcia do wszystkich ratowników
+
     int status;
     pid_t wpid;
     while ((wpid = wait(&status)) > 0) {

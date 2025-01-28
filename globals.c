@@ -87,6 +87,7 @@ void initializeSharedData(SharedMemory* shdata) {
     shdata->isChildOpen = 1;
     shdata->isFacilityClosed = 0;
 }
+int randRange(int min, int max) { return min + rand() % (max - min + 1); }
 
 /*
  *FIFO for keeping track of clients in specific pools
